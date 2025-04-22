@@ -11,7 +11,7 @@ authors = [
     {name = "Scott Pritchard"}
 ]
 license = "MIT"
-license-files = {paths = ["LICENSE"]}
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -39,8 +39,8 @@ web = [
 qless-solver = "qless_solver.cli:main"
 
 [tool.setuptools]
-package-dir = {"qless_solver" = "cli/qless_solver"}
 packages = ["qless_solver"]
+package-dir = {"qless_solver" = "cli/qless_solver"}
 
 [tool.black]
 line-length = 88
