@@ -39,7 +39,8 @@ web = [
 qless-solver = "qless_solver.cli:main"
 
 [tool.setuptools]
-package-dir = {"" = "cli"}
+package-dir = {"qless_solver" = "cli/qless_solver"}
+packages = ["qless_solver"]
 
 [tool.black]
 line-length = 88
