@@ -25,12 +25,22 @@ Q-Less is a solitaire dice game where players attempt to create words using the 
 git clone https://github.com/username/qless-solver.git
 cd qless-solver
 
+# Option 1: Using traditional pip (standard)
 # Set up a virtual environment
 python -m venv venv
 source venv/bin/activate  # On Windows, use: venv\Scripts\activate
 
 # Install dependencies
 pip install -e .
+
+# Option 2: Using uv (faster installation)
+# Install uv if you don't have it already
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install dependencies with uv
+uv venv
+source .venv/bin/activate  # On Windows, use: .venv\Scripts\activate
+uv pip install -e .
 ```
 
 ## Usage
@@ -94,6 +104,7 @@ pre-commit run --all-files
 ### Development Practices
 
 - **Code Organization**: Functional approach with modules containing data structures and supporting functions
+- **Branch-Based Development**: All changes should be made in feature branches, not directly on the main branch
 - **Testing**:
   - Unit tests for all core functionality
   - End-to-end tests to verify full application flow

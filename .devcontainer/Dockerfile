@@ -18,6 +18,12 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | d
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Node.js and npm
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
 # Set up non-root user
 ARG USERNAME=vscode
 ARG USER_UID=1000
@@ -30,10 +36,20 @@ RUN groupadd --gid $USER_GID $USERNAME \
     && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME
 
+# Add ~/.local/bin to PATH for the vscode user
+RUN echo 'export PATH=$PATH:$HOME/.local/bin' >> /home/$USERNAME/.bashrc
+
 # Install pip tools and pre-commit
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel pre-commit
 
 # Set up a working directory
 WORKDIR /workspace
 
+# Switch to the vscode user
 USER $USERNAME
+
+# Install uv for the vscode user
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Add the vscode user's cargo bin to PATH
+RUN echo 'export PATH=$PATH:$HOME/.cargo/bin' >> /home/$USERNAME/.bashrc
