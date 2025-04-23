@@ -30,10 +30,20 @@ RUN groupadd --gid $USER_GID $USERNAME \
     && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME
 
+# Add ~/.local/bin to PATH for the vscode user
+RUN echo 'export PATH=$PATH:$HOME/.local/bin' >> /home/$USERNAME/.bashrc
+
 # Install pip tools and pre-commit
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel pre-commit
 
 # Set up a working directory
 WORKDIR /workspace
 
+# Switch to the vscode user
 USER $USERNAME
+
+# Install uv for the vscode user
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Add the vscode user's cargo bin to PATH
+RUN echo 'export PATH=$PATH:$HOME/.cargo/bin' >> /home/$USERNAME/.bashrc
