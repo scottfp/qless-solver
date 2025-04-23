@@ -9,7 +9,7 @@
   "customizations": {
     "vscode": {
       "settings": {
-        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.defaultInterpreterPath": "/workspaces/qless-solver/.venv/bin/python",
         "python.linting.enabled": true,
         "python.linting.mypyEnabled": true,
         "python.linting.pylintEnabled": false,
@@ -19,7 +19,8 @@
         "editor.codeActionsOnSave": {
           "source.organizeImports": "explicit"
         },
-        "terminal.integrated.defaultProfile.linux": "bash"
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "python.terminal.activateEnvironment": true
       },
       "extensions": [
         "ms-python.python",
@@ -34,9 +35,9 @@
       ]
     }
   },
-  "postCreateCommand": "uv pip install --user -e '.[dev]' && pre-commit install",
+  "postCreateCommand": "bash -c 'uv venv && source .venv/bin/activate && uv pip install -e \".[dev]\" && pre-commit install'",
   "remoteUser": "vscode",
   "remoteEnv": {
-    "PATH": "${containerEnv:PATH}:/home/vscode/.local/bin:/root/.cargo/bin"
+    "PATH": "${containerEnv:PATH}:/home/vscode/.local/bin:/home/vscode/.cargo/bin:/workspaces/qless-solver/.venv/bin"
   }
 }

@@ -36,13 +36,14 @@ RUN echo 'export PATH=$PATH:$HOME/.local/bin' >> /home/$USERNAME/.bashrc
 # Install pip tools and pre-commit
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel pre-commit
 
-# Install uv - a fast Python package installer and resolver
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-
 # Set up a working directory
 WORKDIR /workspace
 
+# Switch to the vscode user
 USER $USERNAME
 
-# Add uv to user's PATH
-RUN echo 'export PATH=$PATH:/root/.cargo/bin' >> /home/$USERNAME/.bashrc
+# Install uv for the vscode user
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Add the vscode user's cargo bin to PATH
+RUN echo 'export PATH=$PATH:$HOME/.cargo/bin' >> /home/$USERNAME/.bashrc
