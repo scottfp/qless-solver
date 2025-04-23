@@ -2,52 +2,24 @@
 Generator module for creating test inputs for the qless-solver.
 """
 
-import random
 from typing import List, Optional, Tuple
 
-# Define typical dice configurations for Q-Less
-# Each die has 6 faces with letters
-# These are hypothetical distributions - actual Q-Less dice may have different letters
-DEFAULT_DICE = [
-    ["A", "E", "I", "O", "U", "Y"],  # Die 1 - vowel-heavy
-    ["A", "E", "I", "O", "U", "Y"],  # Die 2 - vowel-heavy
-    ["B", "C", "D", "F", "G", "H"],  # Die 3
-    ["J", "K", "L", "M", "N", "P"],  # Die 4
-    ["R", "S", "T", "V", "W", "X"],  # Die 5
-    ["A", "E", "I", "O", "U", "Z"],  # Die 6 - vowel-heavy
-    ["B", "C", "D", "F", "G", "H"],  # Die 7
-    ["J", "K", "L", "M", "N", "P"],  # Die 8
-    ["R", "S", "T", "V", "W", "X"],  # Die 9
-    ["A", "E", "I", "O", "U", "Y"],  # Die 10 - vowel-heavy
-    ["B", "C", "D", "G", "P", "T"],  # Die 11
-    ["H", "L", "N", "R", "S", "T"],  # Die 12
-]
+from qless_solver.dice import create_standard_dice_set
 
 
-def generate_random_roll(dice: Optional[List[List[str]]] = None) -> str:
+def generate_random_roll() -> str:
     """
-    Generate a random roll of the Q-Less dice.
-
-    Args:
-        dice: Configuration of dice to use. If None, uses the default configuration.
+    Generate a random roll of the Q-Less dice using the accurate dice distribution.
 
     Returns:
         A string of 12 letters representing a random roll of the dice.
     """
-    if dice is None:
-        dice = DEFAULT_DICE
-
-    result = []
-    for die in dice:
-        result.append(random.choice(die))
-
-    return "".join(result)
+    dice_set = create_standard_dice_set()
+    _, roll_string = dice_set.roll(), dice_set.get_roll_string()
+    return roll_string
 
 
-def generate_solvable_roll(
-    dice: Optional[List[List[str]]] = None,
-    words: Optional[List[str]] = None,
-) -> Tuple[str, List[str]]:
+def generate_solvable_roll(words: Optional[List[str]] = None) -> Tuple[str, List[str]]:
     """
     Generate a solvable roll of the Q-Less dice.
 
@@ -55,19 +27,15 @@ def generate_solvable_roll(
     If no words are provided, it will generate a random roll.
 
     Args:
-        dice: Configuration of dice to use. If None, uses the default configuration.
         words: List of words to include in the solution.
 
     Returns:
         A tuple of (roll, solution_words) where roll is a string of 12 letters
         and solution_words is a list of words that can be formed from the roll.
     """
-    if dice is None:
-        dice = DEFAULT_DICE
-
     if words is None or not words:
         # Just generate a random roll since we don't have target words
-        return generate_random_roll(dice), []
+        return generate_random_roll(), []
 
     # Convert all words to uppercase to match the dice
     words = [word.upper() for word in words]
@@ -78,7 +46,7 @@ def generate_solvable_roll(
 
     # Just return a random roll and the words for now
     # In a real implementation, we would try to generate a roll that includes these words
-    return generate_random_roll(dice), words
+    return generate_random_roll(), words
 
 
 def generate_test_cases(count: int = 10) -> List[str]:
