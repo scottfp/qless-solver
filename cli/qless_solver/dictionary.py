@@ -29,40 +29,55 @@ def load_dictionary(
     if _DICTIONARY is not None:
         return _DICTIONARY
 
-    # For now, use a small built-in dictionary for testing purposes
-    # In a production version, this would be replaced with a proper dictionary file
-    # This is a placeholder - we'd want to use a file-based dictionary in the real implementation
-    _DICTIONARY = {
-        "apple",
-        "banana",
-        "cherry",
-        "date",
-        "fig",
-        "grape",
-        "are",
-        "ran",
-        "ear",
-        "near",
-        "gear",
-        "ran",
-        "eat",
-        "tea",
-        "ate",
-        "seat",
-        "rate",
-        "tear",
-        "gate",
-        "art",
-        "rat",
-        "tar",
-        "tare",
-        "stare",
-        "depart",
-        # Add more words as needed or load from a file
-    }
+    # Use the provided path or default to dictionary.txt in the root directory
+    if dictionary_path is None:
+        dictionary_path = Path(__file__).parent.parent.parent / "dictionary.txt"
 
-    # Convert all words to lowercase
-    _DICTIONARY = {word.lower() for word in _DICTIONARY}
+    _DICTIONARY = set()
+
+    try:
+        with open(dictionary_path, "r", encoding="utf-8") as f:
+            for line in f:
+                # Each line has format "WORD definition..." or just "WORD"
+                # Extract just the word part (before the first space)
+                if line.strip():
+                    word = line.split(" ", 1)[0].lower()
+                    # Remove any non-alphabetic characters
+                    word = "".join(c for c in word if c.isalpha())
+                    if word:  # Only add non-empty words
+                        _DICTIONARY.add(word)
+    except FileNotFoundError:
+        print(
+            f"Dictionary file not found at {dictionary_path}. Using built-in fallback dictionary."
+        )
+        # Fallback to a small built-in dictionary for testing purposes
+        _DICTIONARY = {
+            "apple",
+            "banana",
+            "cherry",
+            "date",
+            "fig",
+            "grape",
+            "are",
+            "ran",
+            "ear",
+            "near",
+            "gear",
+            "ran",
+            "eat",
+            "tea",
+            "ate",
+            "seat",
+            "rate",
+            "tear",
+            "gate",
+            "art",
+            "rat",
+            "tar",
+            "tare",
+            "stare",
+            "depart",
+        }
 
     return _DICTIONARY
 
