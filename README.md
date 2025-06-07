@@ -59,6 +59,28 @@ qless-solver --letters "abcdefghijkl" --all-words
 qless-solver --help
 ```
 
+## Running the Web UI
+
+The Q-less Solver includes a web-based user interface built with FastAPI and HTMX. To run it locally:
+
+1.  **Ensure Dependencies are Installed**:
+    Make sure you have followed the steps in the "Installation" section to set up your environment and install all necessary dependencies. This includes FastAPI, Uvicorn, Jinja2, and other Python packages.
+
+2.  **Run the FastAPI Application**:
+    From the root directory of the project, execute the following command:
+    ```bash
+    python -m uvicorn web.main:app --reload --host 0.0.0.0 --port 8000
+    ```
+    - `--reload`: Enables auto-reload so the server restarts when code changes are detected (useful for development).
+    - `--host 0.0.0.0`: Makes the server accessible from your local network.
+    - `--port 8000`: Specifies the port number.
+
+3.  **Access the UI**:
+    Open your web browser and navigate to:
+    [http://localhost:8000](http://localhost:8000)
+
+    You should see the Q-less Solver interface where you can input letters and see potential solutions.
+
 ## Development
 
 ### Using Dev Containers
