@@ -1,0 +1,40 @@
+{% if error_message %}
+    <div class="error">
+        <p><strong>Error:</strong> {{ error_message }}</p>
+        <p>Submitted letters: {{ letters_submitted }}, Min length: {{ min_word_length_submitted }}</p>
+    </div>
+{% elif solutions %}
+    <p>Found {{ solutions|length }} solution(s) for letters: <strong>{{ letters_submitted }}</strong> (min length: {{ min_word_length_submitted }})</p>
+    {% for sol_obj in solutions %}
+        {% set solution = sol_obj.grid %} {# Assuming GridSolution has a 'grid' attribute of type Grid #}
+        <div class="solution-item">
+            <h4>Solution {{ loop.index }} (Words: {{ solution.words|length }})</h4>
+            <p>Used letters: {{ sol_obj.used_letters.keys()|join(', ') }}</p>
+
+            {# Determine grid boundaries to render it #}
+            {% if solution.cells %}
+                {% set min_x = solution.cells.keys()|map(attribute=0)|min %}
+                {% set max_x = solution.cells.keys()|map(attribute=0)|max %}
+                {% set min_y = solution.cells.keys()|map(attribute=1)|min %}
+                {% set max_y = solution.cells.keys()|map(attribute=1)|max %}
+
+                <div class="solution-grid">
+                    {% for r in range(min_y, max_y + 1) %}
+                        <div class="grid-row">
+                            {% for c in range(min_x, max_x + 1) %}
+                                <div class="grid-cell {% if not solution.cells.get((c, r)) %}empty{% endif %}">
+                                    {{ solution.cells.get((c, r), '') }}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p><em>Empty grid or no cells to display.</em></p>
+            {% endif %}
+            <hr>
+        </div>
+    {% endfor %}
+{% else %}
+    <p>No solutions found for letters: <strong>{{ letters_submitted }}</strong> (min length: {{ min_word_length_submitted }}).</p>
+{% endif %}

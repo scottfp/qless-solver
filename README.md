@@ -26,8 +26,8 @@ git clone https://github.com/username/qless-solver.git
 cd qless-solver
 
 # Option 1: Using traditional pip (standard)
-# Set up a virtual environment
-python -m venv venv
+# Set up a Python 3.12+ virtual environment
+python3.12 -m venv venv
 source venv/bin/activate  # On Windows, use: venv\Scripts\activate
 
 # Install dependencies
@@ -38,7 +38,7 @@ pip install -e .
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Install dependencies with uv
-uv venv
+uv venv -p 3.12
 source .venv/bin/activate  # On Windows, use: .venv\Scripts\activate
 uv pip install -e .
 ```
@@ -58,6 +58,34 @@ qless-solver --letters "abcdefghijkl" --all-words
 # For help
 qless-solver --help
 ```
+
+## Running the Web UI
+
+The Q-less Solver includes a web-based user interface built with FastAPI and HTMX. To run it locally:
+
+1.  **Ensure Dependencies are Installed**:
+    Use Python 3.12 or newer when creating your virtual environment. After activating it, install the project dependencies and the `python-multipart` package:
+    ```bash
+    pip install -e .[dev]
+    pip install python-multipart
+    # Only needed if you plan to run the test suite
+    pip install httpx
+    ```
+
+2.  **Run the FastAPI Application**:
+    From the root directory of the project, execute the following command:
+    ```bash
+    python -m uvicorn web.main:app --reload --host 0.0.0.0 --port 8000
+    ```
+    - `--reload`: Enables auto-reload so the server restarts when code changes are detected (useful for development).
+    - `--host 0.0.0.0`: Makes the server accessible from your local network.
+    - `--port 8000`: Specifies the port number.
+
+3.  **Access the UI**:
+    Open your web browser and navigate to:
+    [http://localhost:8000](http://localhost:8000)
+
+    You should see the Q-less Solver interface where you can input letters and see potential solutions.
 
 ## Development
 
