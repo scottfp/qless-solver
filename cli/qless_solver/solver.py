@@ -190,20 +190,29 @@ def validate_qless_arrangement(
                 if not current_segment_letters:
                     start_idx = i
                 current_segment_letters.append(cell_content)
-            else:
-                if len(current_segment_letters) >= min_word_length:
+            else: # End of a segment (either None or non-alpha character)
+                if current_segment_letters:  # If a segment was actually formed
                     word_str = "".join(current_segment_letters)
-                    if not is_valid_word(word_str, min_word_length):
-                        orientation = "horizontally" if is_horizontal else "vertically"
-                        col_row_label = "row" if is_horizontal else "column"
-                        start_pos_label = "column" if is_horizontal else "row"
+                    orientation = "horizontally" if is_horizontal else "vertically"
+                    col_row_label = "row" if is_horizontal else "column"
+                    start_pos_label = "column" if is_horizontal else "row"
+                    location_desc = f"{orientation} in {col_row_label} {line_num+1} starting at {start_pos_label} {start_idx+1}"
+
+                    # Validate word length
+                    if len(word_str) < min_word_length:
                         current_errors.append(
-                            f"Invalid word: '{word_str}' found {orientation} in {col_row_label} {line_num+1} starting at {start_pos_label} {start_idx+1}."
+                            f"Word '{word_str}' (length {len(word_str)}) found {location_desc} is shorter than minimum word length {min_word_length}."
                         )
-                # Optional: Add warnings for segments < min_word_length if needed by rules
-                current_segment_letters = []
+                    # Validate word against dictionary (only if long enough)
+                    # Use min_length=1 for dictionary check, as the puzzle's min_word_length is already checked.
+                    elif not is_valid_word(word_str, min_length=1):
+                        current_errors.append(
+                            f"Invalid word: '{word_str}' found {location_desc}."
+                        )
+                current_segment_letters = [] # Reset for next segment
                 start_idx = -1
 
+    # Process horizontal segments
     for r_idx, row_list in enumerate(layout_grid):
         _extract_and_validate_segments(row_list, is_horizontal=True, line_num=r_idx, current_errors=errors)
 
