@@ -6,14 +6,15 @@ from typing import List, Dict # Added Dict
 import sys
 import os
 
-# Add the project root to the Python path
+# Add the cli directory to the Python path so qless_solver package is importable
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
+cli_path = os.path.join(project_root, 'cli')
+if cli_path not in sys.path:
+    sys.path.insert(0, cli_path)
 
 try:
-    from cli.qless_solver.grid_solver import solve_qless_grid, GridSolution, Grid # Added Grid
-    from cli.qless_solver.dictionary import Dictionary # To handle potential init errors
+    from qless_solver.grid_solver import solve_qless_grid, GridSolution, Grid
+    from qless_solver.dictionary import Dictionary
 except ImportError as e:
     print(f"Error importing solver modules: {e}")
     # Handle as appropriate, e.g. by disabling features or raising an error at startup
