@@ -10,6 +10,9 @@ class GridPosition(BaseModel):
     y: int
     direction: str = "across"  # "across" or "down"
 
+    def __hash__(self) -> int:  # pragma: no cover - simple tuple hash
+        return hash((self.x, self.y, self.direction))
+
 class PlacedWord(BaseModel):
     word: str
     position: GridPosition
