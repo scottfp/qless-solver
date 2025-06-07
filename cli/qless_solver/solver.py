@@ -229,7 +229,7 @@ def validate_qless_arrangement(
                     # Validate word length
                     if len(word_str) < min_word_length:
                         current_errors.append(
-                            f"Word '{word_str}' (length {len(word_str)}) found {location_desc} is shorter than minimum word length {min_word_length}."
+                            f"Word '{word_str}' is shorter than min_word_length"
                         )
                     # Validate word against dictionary (only if long enough)
                     # Use min_length=1 for dictionary check, as the puzzle's min_word_length is already checked.
