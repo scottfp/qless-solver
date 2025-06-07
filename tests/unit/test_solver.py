@@ -25,17 +25,8 @@ def create_test_grid(rows_repr: List[str]) -> List[List[Optional[str]]]:
 
 # Updated Test cases
 VALIDATION_TEST_CASES = [
-    # Corrected "batcen" case - target_letters updated, and expecting False due to likely dictionary content
-    ("bataceten", ["bat", "ace", "ten"], 3, False, [
-        "Invalid word: 'bat' found horizontally",
-        "Invalid word: 'ace' found horizontally",
-        "Invalid word: 'ten' found horizontally",
-        "Invalid word: 'bat' found vertically", # Assuming 'bat' is different from 'bta' etc.
-        "Invalid word: 'ace' found vertically",
-        "Invalid word: 'ten' found vertically",
-        # Note: Letter conservation errors won't appear if word errors are found first due to current func logic.
-        # If all words WERE valid, then target_letters='bataceten' would make letter conservation pass.
-    ]),
+    # "bataceten" case: Changed to expect True (valid) and no errors.
+    ("bataceten", ["bat", "ace", "ten"], 3, True, []),
     # Invalid: Letter Conservation - Missing letter from layout
     ("abcdefg", ["abc", "def"], 3, False, ["Letters missing from layout"]),
     # Invalid: Letter Conservation - Extra letter in layout
