@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Q-less Solver</title>
+    <!-- Include HTMX library -->
+    <script src="https://unpkg.com/htmx.org@1.9.10" integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37i7HUxdLIh韫LLQG+" crossorigin="anonymous"></script>
+    <style>
+        body { font-family: sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1 { color: #333; }
+        label { display: block; margin-bottom: 5px; }
+        input[type="text"], input[type="number"] {
+            width: calc(100% - 22px); padding: 10px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 4px;
+        }
+        button {
+            background-color: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;
+        }
+        button:hover { background-color: #0056b3; }
+        #results { margin-top: 20px; padding: 10px; border: 1px solid #eee; border-radius: 4px; background-color: #f9f9f9; }
+        .solution-grid { display: grid; gap: 2px; margin-bottom: 10px; border: 1px solid #ccc; padding: 5px; background-color: #e0e0e0; max-width: fit-content;}
+        .grid-row { display: flex; }
+        .grid-cell {
+            width: 30px; height: 30px; background-color: #fff; border: 1px solid #ccc;
+            display: flex; justify-content: center; align-items: center; font-weight: bold; text-transform: uppercase;
+        }
+        .grid-cell.empty { background-color: #f0f0f0; } /* Style for empty cells if needed */
+        .error { color: red; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Q-less Solver</h1>
+
+        <form id="solver-form"
+              hx-post="/solve-htmx/"
+              hx-target="#results-container"
+              hx-swap="innerHTML"
+              hx-indicator="#loading-indicator">
+            <div>
+                <label for="letters">Enter your letters:</label>
+                <input type="text" id="letters" name="letters" value="abcdef" required>
+            </div>
+            <div>
+                <label for="min_word_length">Minimum word length (optional):</label>
+                <input type="number" id="min_word_length" name="min_word_length" value="3" min="2">
+            </div>
+            <button type="submit">Solve</button>
+            <span id="loading-indicator" style="display:none;">Loading...</span>
+        </form>
+
+        <div id="results-container">
+            <!-- Results will be loaded here by HTMX -->
+            <p>Enter letters and click "Solve" to see results.</p>
+        </div>
+    </div>
+
+    <script>
+        // Optional: Client-side script to handle JSON encoding for the form
+        // if hx-ext="json-enc" is not sufficient or for more complex scenarios.
+        // However, hx-ext="json-enc" should handle this for simple cases.
+        // document.body.addEventListener('htmx:configRequest', function(evt) {
+        //   if (evt.detail.elt.id === 'solver-form') {
+        //     evt.detail.headers['Content-Type'] = 'application/json';
+        //     // Parameters are already collected by htmx in evt.detail.parameters
+        //     // For json-enc, htmx will automatically stringify it.
+        //   }
+        // });
+
+        // To handle the HTMX response and render it (if it's not direct HTML from server)
+        // This is more relevant if the server returns JSON that needs client-side templating.
+        // But our FastAPI endpoint is set to return List[GridSolution],
+        // and HTMX will try to put the string representation of this JSON into #results-container.
+        // We need the server to return HTML for HTMX to swap directly.
+        // So, the FastAPI endpoint /solve/ needs to return an HTML snippet.
+        // This means the current plan step 3 (HTMX frontend) and step 2 (FastAPI endpoint) are tightly coupled.
+        // The /solve/ endpoint should render a template with the solutions.
+    </script>
+</body>
+</html>
