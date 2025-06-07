@@ -26,8 +26,8 @@ git clone https://github.com/username/qless-solver.git
 cd qless-solver
 
 # Option 1: Using traditional pip (standard)
-# Set up a virtual environment
-python -m venv venv
+# Set up a Python 3.12+ virtual environment
+python3.12 -m venv venv
 source venv/bin/activate  # On Windows, use: venv\Scripts\activate
 
 # Install dependencies
@@ -38,7 +38,7 @@ pip install -e .
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Install dependencies with uv
-uv venv
+uv venv -p 3.12
 source .venv/bin/activate  # On Windows, use: .venv\Scripts\activate
 uv pip install -e .
 ```
@@ -64,7 +64,13 @@ qless-solver --help
 The Q-less Solver includes a web-based user interface built with FastAPI and HTMX. To run it locally:
 
 1.  **Ensure Dependencies are Installed**:
-    Make sure you have followed the steps in the "Installation" section to set up your environment and install all necessary dependencies. This includes FastAPI, Uvicorn, Jinja2, and other Python packages.
+    Use Python 3.12 or newer when creating your virtual environment. After activating it, install the project dependencies and the `python-multipart` package:
+    ```bash
+    pip install -e .[dev]
+    pip install python-multipart
+    # Only needed if you plan to run the test suite
+    pip install httpx
+    ```
 
 2.  **Run the FastAPI Application**:
     From the root directory of the project, execute the following command:
