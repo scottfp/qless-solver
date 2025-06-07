@@ -3,7 +3,7 @@ from typing import List, Dict, Tuple, Set
 from collections import Counter
 
 # Ensure this import path is correct based on your project structure
-from cli.qless_solver.dictionary import Dictionary
+from qless_solver.dictionary import Dictionary
 
 class GridPosition(BaseModel):
     x: int
