@@ -3,10 +3,10 @@ Core solving logic for the Q-Less game.
 """
 
 from collections import Counter
-from typing import Dict, Iterator, List, Set
+from typing import Dict, Iterator, List, Optional, Set, Tuple # Added Optional, Tuple
 
 from pydantic import BaseModel, Field
-from qless_solver.dictionary import get_valid_words
+from qless_solver.dictionary import get_valid_words, is_valid_word # Added is_valid_word
 
 
 class Solution(BaseModel):
@@ -119,3 +119,97 @@ def find_complete_solutions(
 
     backtrack(available_letters.copy(), [])
     return solutions
+
+
+def validate_qless_arrangement(
+    target_letters_str: str,
+    layout_grid: List[List[Optional[str]]],
+    min_word_length: int = 3,
+) -> Tuple[bool, List[str]]:
+
+    errors: List[str] = []
+
+    # Removed local import of is_valid_word, as it's imported at module level.
+
+    target_letters_str_lower = target_letters_str.lower()
+    target_letter_counts = Counter(target_letters_str_lower)
+
+    # Optional: Initial check for target_letters_str validity (e.g., 12 unique letters)
+    # if len(target_letters_str_lower) != 12 or len(target_letter_counts) != 12:
+    #     errors.append(f"Target letters string must contain exactly 12 unique letters. Provided: '{target_letters_str}'")
+    # For now, this responsibility can be left to the caller or CLI.
+
+    layout_letter_counts = Counter()
+    grid_rows = len(layout_grid)
+
+    if grid_rows == 0:
+        if target_letter_counts:
+             errors.append(f"Layout grid is empty, but target letters were provided: {sorted(list(target_letter_counts.keys()))}")
+        # If no target letters and empty grid, it's technically valid (no errors)
+        return not errors, errors
+
+    grid_cols = len(layout_grid[0]) # Assumes all rows are of same length (normalized by CLI)
+
+    for r in range(grid_rows):
+        if len(layout_grid[r]) != grid_cols: # Should not happen if CLI normalizes
+            errors.append(f"Internal Error: Grid normalization failed. Row {r+1} has length {len(layout_grid[r])}, expected {grid_cols}.")
+            return False, errors # Malformed grid, critical error
+
+        for c in range(grid_cols):
+            letter = layout_grid[r][c]
+            if letter:
+                if not isinstance(letter, str) or not letter.isalpha() or len(letter) != 1:
+                    errors.append(f"Invalid character '{letter}' in grid at row {r+1}, col {c+1}. Only single letters allowed.")
+                    continue
+                layout_letter_counts[letter.lower()] += 1
+
+    if layout_letter_counts != target_letter_counts:
+        missing_from_layout = target_letter_counts - layout_letter_counts
+        extra_in_layout = layout_letter_counts - target_letter_counts
+
+        if missing_from_layout:
+            errors.append(f"Letters missing from layout that were in target: {sorted(list(missing_from_layout.keys()))}")
+        if extra_in_layout:
+            errors.append(f"Letters found in layout that were not in target: {sorted(list(extra_in_layout.keys()))}")
+
+        # Check for incorrect counts if a letter is common to both but counts differ
+        # (This is usually covered by the symmetric difference logic of Counter if elements are unique)
+        for letter_key in target_letter_counts:
+             if letter_key not in missing_from_layout and letter_key not in extra_in_layout:
+                 if layout_letter_counts[letter_key] != target_letter_counts[letter_key]:
+                      errors.append(f"Letter '{letter_key}' count mismatch: layout has {layout_letter_counts[letter_key]}, target expects {target_letter_counts[letter_key]}.")
+
+
+    def _extract_and_validate_segments(line: List[Optional[str]], is_horizontal: bool, line_num: int, current_errors: List[str]) -> None:
+        current_segment_letters: List[str] = []
+        start_idx = -1
+        processed_line = line + [None]
+
+        for i, cell_content in enumerate(processed_line):
+            if cell_content and cell_content.isalpha():
+                if not current_segment_letters:
+                    start_idx = i
+                current_segment_letters.append(cell_content)
+            else:
+                if len(current_segment_letters) >= min_word_length:
+                    word_str = "".join(current_segment_letters)
+                    if not is_valid_word(word_str, min_word_length):
+                        orientation = "horizontally" if is_horizontal else "vertically"
+                        col_row_label = "row" if is_horizontal else "column"
+                        start_pos_label = "column" if is_horizontal else "row"
+                        current_errors.append(
+                            f"Invalid word: '{word_str}' found {orientation} in {col_row_label} {line_num+1} starting at {start_pos_label} {start_idx+1}."
+                        )
+                # Optional: Add warnings for segments < min_word_length if needed by rules
+                current_segment_letters = []
+                start_idx = -1
+
+    for r_idx, row_list in enumerate(layout_grid):
+        _extract_and_validate_segments(row_list, is_horizontal=True, line_num=r_idx, current_errors=errors)
+
+    if grid_rows > 0 and grid_cols > 0:
+        for c_idx in range(grid_cols):
+            column_list = [layout_grid[r_idx][c_idx] for r_idx in range(grid_rows)]
+            _extract_and_validate_segments(column_list, is_horizontal=False, line_num=c_idx, current_errors=errors)
+
+    return not errors, errors
