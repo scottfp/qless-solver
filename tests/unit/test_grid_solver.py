@@ -1,7 +1,14 @@
 import pytest
 from collections import Counter
-from cli.qless_solver.grid_solver import Grid, GridPosition, PlacedWord, GridSolution, solve_qless_grid, get_valid_words
-from cli.qless_solver.dictionary import Dictionary
+from qless_solver.grid_solver import (
+    Grid,
+    GridPosition,
+    PlacedWord,
+    GridSolution,
+    solve_qless_grid,
+    get_valid_words,
+)
+from qless_solver.dictionary import Dictionary
 
 # Mock Dictionary for testing get_valid_words and solve_qless_grid
 class MockDictionary(Dictionary):
@@ -99,7 +106,7 @@ def test_get_valid_words_mock_dict(simple_dictionary: MockDictionary):
 # Tests for solve_qless_grid
 def test_solve_qless_grid_simple_case(monkeypatch, simple_dictionary: MockDictionary):
     # Patch the Dictionary class instantiation within the grid_solver module
-    monkeypatch.setattr("cli.qless_solver.grid_solver.Dictionary", lambda: simple_dictionary)
+    monkeypatch.setattr("qless_solver.grid_solver.Dictionary", lambda: simple_dictionary)
 
     solutions = solve_qless_grid(letters="cat", min_word_length=3)
 
@@ -116,7 +123,7 @@ def test_solve_qless_grid_simple_case(monkeypatch, simple_dictionary: MockDictio
 
 
 def test_solve_qless_grid_no_solution(monkeypatch, simple_dictionary: MockDictionary):
-    monkeypatch.setattr("cli.qless_solver.grid_solver.Dictionary", lambda: simple_dictionary)
+    monkeypatch.setattr("qless_solver.grid_solver.Dictionary", lambda: simple_dictionary)
     solutions = solve_qless_grid(letters="xyz", min_word_length=3)
     assert len(solutions) == 0
 

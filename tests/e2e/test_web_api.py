@@ -39,7 +39,12 @@ def test_read_root_html(client: TestClient):
 # Test for the JSON API endpoint
 def test_solve_letters_api_json(client: TestClient, monkeypatch):
     # Import models needed for mocking the response
-    from cli.qless_solver.grid_solver import GridSolution, Grid, PlacedWord, GridPosition
+    from qless_solver.grid_solver import (
+        GridSolution,
+        Grid,
+        PlacedWord,
+        GridPosition,
+    )
 
     mock_solution = GridSolution(
         grid=Grid(words=[PlacedWord(word="test", position=GridPosition(x=0,y=0,direction="across"))], cells={(0,0): "t"}),
@@ -59,8 +64,8 @@ def test_solve_letters_api_json(client: TestClient, monkeypatch):
     json_response = response.json()
     assert len(json_response) == 1
     assert json_response[0]["grid"]["words"][0]["word"] == "test"
-    # Counter serializes to a dict: {'t': 1, 'e': 1, 's': 1}
-    assert json_response[0]["used_letters"] == {"t": 1, "e": 1, "s": 1, "t":1}
+    # Counter serializes to a dict: {'t': 2, 'e': 1, 's': 1}
+    assert json_response[0]["used_letters"] == {"t": 2, "e": 1, "s": 1}
 
     response_no_solution = client.post("/api/solve/", json={"letters": "xyz", "min_word_length": 3})
     assert response_no_solution.status_code == 200
@@ -69,7 +74,12 @@ def test_solve_letters_api_json(client: TestClient, monkeypatch):
 
 # Test for the HTMX form submission endpoint
 def test_solve_letters_htmx(client: TestClient, monkeypatch):
-    from cli.qless_solver.grid_solver import GridSolution, Grid, PlacedWord, GridPosition
+    from qless_solver.grid_solver import (
+        GridSolution,
+        Grid,
+        PlacedWord,
+        GridPosition,
+    )
 
     mock_solution = GridSolution(
         grid=Grid(words=[PlacedWord(word="htmx", position=GridPosition(x=0,y=0,direction="across"))], cells={(0,0):"h"}),
@@ -91,7 +101,7 @@ def test_solve_letters_htmx(client: TestClient, monkeypatch):
 
     response_no_solution = client.post("/solve-htmx/", data={"letters": "none", "min_word_length": "4"})
     assert response_no_solution.status_code == 200
-    assert "No solutions found for letters: <strong>none</strong>" in response.text
+    assert "No solutions found for letters: <strong>none</strong>" in response_no_solution.text
 
 def test_solve_api_error_handling(client: TestClient, monkeypatch):
     def mock_solver_raises_exception(letters: str, min_word_length: int):
@@ -123,4 +133,7 @@ def test_solve_htmx_error_handling(client: TestClient, monkeypatch):
     monkeypatch.setattr("web.main.solve_qless_grid", mock_solver_raises_exception_htmx)
     response = client.post("/solve-htmx/", data={"letters": "error_htmx", "min_word_length": "3"})
     assert response.status_code == 200 # HTMX endpoint returns HTML with error message
-    assert "Error: An error occurred during solving: HTMX Solver internal error" in response.text
+    assert (
+        "<strong>Error:</strong> An error occurred during solving: HTMX Solver internal error"
+        in response.text
+    )
