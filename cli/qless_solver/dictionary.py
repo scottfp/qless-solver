@@ -158,3 +158,18 @@ def add_custom_words(words: Set[str]) -> None:
     dictionary = load_dictionary()
     for word in words:
         dictionary.add(word.lower())
+
+
+class Dictionary:
+    """Dictionary wrapper that loads and validates words."""
+
+    def __init__(self, path: Optional[Path] = None) -> None:
+        self.words: Set[str] = load_dictionary(path)
+
+    def is_valid_word(self, word: str) -> bool:
+        """Return True if ``word`` exists in this dictionary."""
+        return word.lower() in self.words
+
+    def load_dictionary(self, path: Path) -> None:
+        """Reload the dictionary from ``path``."""
+        self.words = load_dictionary(path)
