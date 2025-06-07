@@ -8,7 +8,12 @@ to manipulate them.
 import random
 from typing import Dict, List, Optional, Tuple
 
-from pydantic import BaseModel, Field, field_validator
+try:  # Support both Pydantic v1 and v2
+    from pydantic import BaseModel, Field, field_validator
+    PYDANTIC_V2 = True
+except ImportError:  # pragma: no cover - fallback for older Pydantic
+    from pydantic import BaseModel, Field, validator as field_validator
+    PYDANTIC_V2 = False
 
 # The actual letter distribution on the Q-Less dice, sourced from BoardGameGeek
 # Each list represents one die with its six sides
@@ -70,7 +75,11 @@ class DiceSet(BaseModel):
         default_factory=list, description="The result of the last roll"
     )
 
-    model_config = {"arbitrary_types_allowed": True}
+    if PYDANTIC_V2:
+        model_config = {"arbitrary_types_allowed": True}
+    else:  # pragma: no cover - pydantic v1 style config
+        class Config:
+            arbitrary_types_allowed = True
 
     @classmethod
     def from_config(cls, dice_config: Optional[List[List[str]]] = None) -> "DiceSet":
