@@ -34,7 +34,7 @@ class SolveRequestBody(BaseModel):
 
 @app.get("/", response_class=HTMLResponse)
 async def read_index(request: Request):
-    """Serves the main HTML page.".""
+    """Serves the main HTML page."""
     return templates.TemplateResponse("index.html", {"request": request})
 
 # This is the endpoint HTMX will call. It needs to return an HTML snippet.
