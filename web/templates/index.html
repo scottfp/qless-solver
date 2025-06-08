@@ -69,7 +69,7 @@
               hx-indicator="#loading-indicator">
             <div>
                 <label for="letters">Enter your letters:</label>
-                <input type="text" id="letters" name="letters" maxlength="12" minlength="12" placeholder="Enter 12 letters" required>
+                <input type="text" id="letters" name="letters" maxlength="12" minlength="12" pattern="[A-Za-z]{12}" placeholder="Enter 12 letters" required title="Enter exactly 12 letters">
             </div>
             <button type="submit">Solve</button>
             <span id="loading-indicator" style="display:none;">Loading...</span>
