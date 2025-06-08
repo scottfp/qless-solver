@@ -183,6 +183,24 @@
             <span id="loading-indicator" style="display:none;">Loading...</span>
         </form>
 
+        {% if default_grids %}
+        <div id="default-grid-wrapper" style="text-align: center; margin-top: 20px;">
+            <button id="prev-solution" aria-label="Previous solution">&lt;</button>
+            <div id="solution-grid" class="solution-grid" style="display:inline-block;">
+                {% for row in default_grids[0] %}
+                <div class="grid-row">
+                    {% for ch in row %}
+                    <div class="grid-cell {% if ch == '.' %}empty{% endif %}">
+                        {{ '' if ch == '.' else ch }}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+            <button id="next-solution" aria-label="Next solution">&gt;</button>
+        </div>
+        {% endif %}
+
         <div id="results-container">
             <!-- Results will be loaded here by HTMX -->
             <p>Enter letters and click "Solve" to see results.</p>
@@ -211,6 +229,38 @@
             localStorage.setItem('darkMode', enabled);
             setMode(enabled);
         });
+
+        {% if default_grids %}
+        const defaultGrids = {{ default_grids|tojson }};
+        let currentGridIndex = 0;
+
+        function renderGrid(idx) {
+            const grid = defaultGrids[idx];
+            const container = document.getElementById('solution-grid');
+            container.innerHTML = '';
+            grid.forEach(row => {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'grid-row';
+                for (const ch of row) {
+                    const cell = document.createElement('div');
+                    cell.className = 'grid-cell' + (ch === '.' ? ' empty' : '');
+                    cell.textContent = ch === '.' ? '' : ch;
+                    rowDiv.appendChild(cell);
+                }
+                container.appendChild(rowDiv);
+            });
+        }
+
+        document.getElementById('prev-solution').addEventListener('click', () => {
+            currentGridIndex = (currentGridIndex - 1 + defaultGrids.length) % defaultGrids.length;
+            renderGrid(currentGridIndex);
+        });
+
+        document.getElementById('next-solution').addEventListener('click', () => {
+            currentGridIndex = (currentGridIndex + 1) % defaultGrids.length;
+            renderGrid(currentGridIndex);
+        });
+        {% endif %}
 
         // Optional: Client-side script to handle JSON encoding for the form
         // if hx-ext="json-enc" is not sufficient or for more complex scenarios.
