@@ -64,10 +64,9 @@ qless-solver --help
 The Q-less Solver includes a web-based user interface built with FastAPI and HTMX. To run it locally:
 
 1.  **Ensure Dependencies are Installed**:
-    Use Python 3.11 or newer when creating your virtual environment. After activating it, install the project dependencies and the `python-multipart` package:
+    Use Python 3.11 or newer when creating your virtual environment. After activating it, install the project dependencies:
     ```bash
     pip install -e .[dev]
-    pip install python-multipart  # for form handling
     ```
 
 2.  **Run the FastAPI Application**:
