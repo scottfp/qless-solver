@@ -1,7 +1,5 @@
 """Image-based letter detection utilities."""
 
-from typing import Iterable
-
 
 def detect_letters(image_bytes: bytes) -> str:
     """Stub to detect letters from an uploaded image.

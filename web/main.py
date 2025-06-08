@@ -1,10 +1,45 @@
-from fastapi import FastAPI, HTTPException, Request, Form, UploadFile, File
+import os
+import sys
+from typing import List
+
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
-from typing import List, Dict  # Added Dict
-import sys
-import os
+
+DEFAULT_GRIDS = [
+    [
+        ".f...",
+        "kohl.",
+        ".b.i.",
+        "...p.",
+        ".him.",
+        "...d.",
+    ],
+    [
+        ".....w",
+        ".....r",
+        ".l...a",
+        "pantry",
+        ".m....",
+        ".b....",
+    ],
+    [
+        "....s.",
+        "....h.",
+        "....a.",
+        ".l..k.",
+        "mildew",
+        ".d....",
+    ],
+    [
+        ".p...",
+        ".r.n.",
+        "comet",
+        ".n.x.",
+        ".g.t.",
+    ],
+]
 
 # Add the cli directory to the Python path so qless_solver package is importable
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -13,8 +48,7 @@ if cli_path not in sys.path:
     sys.path.insert(0, cli_path)
 
 try:
-    from qless_solver.grid_solver import solve_qless_grid, GridSolution, Grid
-    from qless_solver.dictionary import Dictionary
+    from qless_solver.grid_solver import Grid, GridSolution, solve_qless_grid
     from qless_solver.image_detection import detect_letters
 except ImportError as e:
     print(f"Error importing solver modules: {e}")
@@ -42,7 +76,9 @@ class SolveRequestBody(BaseModel):
 @app.get("/", response_class=HTMLResponse)
 async def read_index(request: Request):
     """Serves the main HTML page."""
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(
+        "index.html", {"request": request, "default_grids": DEFAULT_GRIDS}
+    )
 
 
 # This is the endpoint HTMX will call. It needs to return an HTML snippet.
