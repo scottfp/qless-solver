@@ -1,10 +1,10 @@
 {% if error_message %}
     <div class="error">
         <p><strong>Error:</strong> {{ error_message }}</p>
-        <p>Submitted letters: {{ letters_submitted }}, Min length: {{ min_word_length_submitted }}</p>
+        <p>Submitted letters: {{ letters_submitted }}</p>
     </div>
 {% elif solutions %}
-    <p>Found {{ solutions|length }} solution(s) for letters: <strong>{{ letters_submitted }}</strong> (min length: {{ min_word_length_submitted }})</p>
+    <p>Found {{ solutions|length }} solution(s) for letters: <strong>{{ letters_submitted }}</strong></p>
     {% for sol_obj in solutions %}
         {% set solution = sol_obj.grid %} {# Assuming GridSolution has a 'grid' attribute of type Grid #}
         <div class="solution-item">
@@ -36,5 +36,5 @@
         </div>
     {% endfor %}
 {% else %}
-    <p>No solutions found for letters: <strong>{{ letters_submitted }}</strong> (min length: {{ min_word_length_submitted }}).</p>
+    <p>No solutions found for letters: <strong>{{ letters_submitted }}</strong>.</p>
 {% endif %}
