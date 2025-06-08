@@ -30,8 +30,8 @@ cd qless-solver
 python3.11 -m venv venv
 source venv/bin/activate  # On Windows, use: venv\Scripts\activate
 
-# Install dependencies
-pip install -e .
+# Install dependencies for development and testing
+pip install -e .[dev]
 
 # Option 2: Using uv (faster installation)
 # Install uv if you don't have it already
@@ -40,7 +40,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 # Install dependencies with uv
 uv venv -p 3.11
 source .venv/bin/activate  # On Windows, use: .venv\Scripts\activate
-uv pip install -e .
+uv pip install -e .[dev]
 ```
 
 ## Usage
@@ -64,10 +64,9 @@ qless-solver --help
 The Q-less Solver includes a web-based user interface built with FastAPI and HTMX. To run it locally:
 
 1.  **Ensure Dependencies are Installed**:
-    Use Python 3.11 or newer when creating your virtual environment. After activating it, install the project dependencies and the `python-multipart` package:
+    Use Python 3.11 or newer when creating your virtual environment. After activating it, install the project dependencies:
     ```bash
     pip install -e .[dev]
-    pip install python-multipart  # for form handling
     ```
 
 2.  **Run the FastAPI Application**:
