@@ -87,6 +87,7 @@ The Q-less Solver includes a web-based user interface built with FastAPI and HTM
 
 4.  **Capture a Photo**:
     The page provides a *Capture & Solve* form that uses your device's camera (or allows uploading an image) to detect letters automatically.
+    The detection logic relies on [EasyOCR](https://github.com/JaidedAI/EasyOCR) so that photos of the dice can be converted directly into the 12 letters used by the solver.
 
 ## Development
 
