@@ -26,8 +26,8 @@ git clone https://github.com/username/qless-solver.git
 cd qless-solver
 
 # Option 1: Using traditional pip (standard)
-# Set up a Python 3.12+ virtual environment
-python3.12 -m venv venv
+# Set up a Python 3.11+ virtual environment
+python3.11 -m venv venv
 source venv/bin/activate  # On Windows, use: venv\Scripts\activate
 
 # Install dependencies
@@ -38,7 +38,7 @@ pip install -e .
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Install dependencies with uv
-uv venv -p 3.12
+uv venv -p 3.11
 source .venv/bin/activate  # On Windows, use: .venv\Scripts\activate
 uv pip install -e .
 ```
@@ -64,7 +64,7 @@ qless-solver --help
 The Q-less Solver includes a web-based user interface built with FastAPI and HTMX. To run it locally:
 
 1.  **Ensure Dependencies are Installed**:
-    Use Python 3.12 or newer when creating your virtual environment. After activating it, install the project dependencies and the `python-multipart` package:
+    Use Python 3.11 or newer when creating your virtual environment. After activating it, install the project dependencies and the `python-multipart` package:
     ```bash
     pip install -e .[dev]
     pip install python-multipart  # for form handling
@@ -84,6 +84,9 @@ The Q-less Solver includes a web-based user interface built with FastAPI and HTM
     [http://localhost:8000](http://localhost:8000)
 
     You should see the Q-less Solver interface where you can input letters and see potential solutions.
+
+4.  **Capture a Photo**:
+    The page provides a *Capture & Solve* form that uses your device's camera (or allows uploading an image) to detect letters automatically.
 
 ## Development
 
@@ -119,7 +122,7 @@ pre-commit run --all-files
 
 ### Technology Stack
 
-- **Python**: Latest stable version (3.12+)
+- **Python**: Latest stable version (3.11+)
 - **Dictionary Source**: TBD (Evaluating options)
 - **Testing**: pytest
 - **Web Framework**: FastAPI + HTMX (Phase 2)

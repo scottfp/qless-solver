@@ -4,6 +4,9 @@ from collections import Counter  # Import Counter for mock solution
 
 import pytest
 from fastapi.testclient import TestClient
+import sys
+import os
+from collections import Counter  # Import Counter for mock solution
 
 # Add project root to sys.path to allow importing web.main
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -173,3 +176,45 @@ def test_solve_htmx_error_handling(client: TestClient, monkeypatch):
         "<strong>Error:</strong> An error occurred during solving: HTMX Solver internal error"
         in response.text
     )
+
+
+def test_solve_image_endpoint(client: TestClient, monkeypatch):
+    from qless_solver.grid_solver import (
+        GridSolution,
+        Grid,
+        PlacedWord,
+        GridPosition,
+    )
+    from io import BytesIO
+
+    mock_solution = GridSolution(
+        grid=Grid(
+            words=[
+                PlacedWord(
+                    word="img", position=GridPosition(x=0, y=0, direction="across")
+                )
+            ],
+            cells={(0, 0): "i"},
+        ),
+        used_letters=Counter("img"),
+    )
+
+    def mock_detect_letters(_: bytes) -> str:
+        return "img"
+
+    def mock_solve_qless_grid_func(letters: str, min_word_length: int):
+        if letters == "img":
+            return [mock_solution]
+        return []
+
+    monkeypatch.setattr("web.main.detect_letters", mock_detect_letters)
+    monkeypatch.setattr("web.main.solve_qless_grid", mock_solve_qless_grid_func)
+
+    fake_file = BytesIO(b"fake")
+    response = client.post(
+        "/solve-image/",
+        files={"image": ("test.png", fake_file, "image/png")},
+        data={"min_word_length": "3"},
+    )
+    assert response.status_code == 200
+    assert "Found 1 solution(s)" in response.text
