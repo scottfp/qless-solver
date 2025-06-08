@@ -114,7 +114,7 @@ async def solve_letters_image(
     except Exception as e:
         error_message = f"An error occurred during solving: {str(e)}"
         print(error_message)
-
+    # Render an HTML snippet template with the solutions or error
     return templates.TemplateResponse(
         "results_snippet.html",
         {

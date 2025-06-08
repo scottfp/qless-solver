@@ -67,9 +67,7 @@ The Q-less Solver includes a web-based user interface built with FastAPI and HTM
     Use Python 3.11 or newer when creating your virtual environment. After activating it, install the project dependencies and the `python-multipart` package:
     ```bash
     pip install -e .[dev]
-    pip install python-multipart
-    # Only needed if you plan to run the test suite
-    pip install httpx
+    pip install python-multipart  # for form handling
     ```
 
 2.  **Run the FastAPI Application**:

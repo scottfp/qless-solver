@@ -1,3 +1,7 @@
+import os
+import sys
+from collections import Counter  # Import Counter for mock solution
+
 import pytest
 from fastapi.testclient import TestClient
 import sys
@@ -42,10 +46,10 @@ def test_read_root_html(client: TestClient):
 def test_solve_letters_api_json(client: TestClient, monkeypatch):
     # Import models needed for mocking the response
     from qless_solver.grid_solver import (
-        GridSolution,
         Grid,
-        PlacedWord,
         GridPosition,
+        GridSolution,
+        PlacedWord,
     )
 
     mock_solution = GridSolution(
@@ -88,10 +92,10 @@ def test_solve_letters_api_json(client: TestClient, monkeypatch):
 # Test for the HTMX form submission endpoint
 def test_solve_letters_htmx(client: TestClient, monkeypatch):
     from qless_solver.grid_solver import (
-        GridSolution,
         Grid,
-        PlacedWord,
         GridPosition,
+        GridSolution,
+        PlacedWord,
     )
 
     mock_solution = GridSolution(
