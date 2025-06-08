@@ -33,6 +33,24 @@
     <div class="container">
         <h1>Q-less Solver</h1>
 
+        <form id="image-form"
+              hx-post="/solve-image/"
+              hx-target="#results-container"
+              hx-swap="innerHTML"
+              hx-indicator="#loading-indicator"
+              enctype="multipart/form-data">
+            <div>
+                <label for="image">Take a photo of your dice:</label>
+                <input type="file" id="image" name="image" accept="image/*" capture="environment" required>
+            </div>
+            <div>
+                <label for="img_min_word_length">Minimum word length (optional):</label>
+                <input type="number" id="img_min_word_length" name="min_word_length" value="3" min="2">
+            </div>
+            <button type="submit">Capture &amp; Solve</button>
+        </form>
+
+        <h3>Or manually enter letters:</h3>
         <form id="solver-form"
               hx-post="/solve-htmx/"
               hx-target="#results-container"
