@@ -1,8 +1,7 @@
 [phases.setup]
-working_dir = "/app"
 nixPkgs = ["python312"]
 
-[phases.install]
+[phases.build]
 cmds = ["python -m pip install -e ."]
 
 [start]
