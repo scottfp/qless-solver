@@ -35,7 +35,15 @@
             color: #888;
             cursor: pointer;
         }
-        .solution-grid { display: grid; gap: 2px; margin-bottom: 10px; border: 1px solid #ccc; padding: 5px; background-color: #e0e0e0; max-width: fit-content;}
+        .solution-grid, .letters-grid {
+            display: grid;
+            gap: 2px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            padding: 5px;
+            background-color: #e0e0e0;
+            max-width: fit-content;
+        }
         .grid-cell {
             width: 30px; height: 30px; background-color: #fff; border: 1px solid #ccc;
             display: flex; justify-content: center; align-items: center; font-weight: bold; text-transform: uppercase;
