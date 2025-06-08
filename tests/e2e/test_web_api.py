@@ -4,9 +4,6 @@ from collections import Counter  # Import Counter for mock solution
 
 import pytest
 from fastapi.testclient import TestClient
-import sys
-import os
-from collections import Counter  # Import Counter for mock solution
 
 # Add project root to sys.path to allow importing web.main
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -179,13 +176,14 @@ def test_solve_htmx_error_handling(client: TestClient, monkeypatch):
 
 
 def test_solve_image_endpoint(client: TestClient, monkeypatch):
-    from qless_solver.grid_solver import (
-        GridSolution,
-        Grid,
-        PlacedWord,
-        GridPosition,
-    )
     from io import BytesIO
+
+    from qless_solver.grid_solver import (
+        Grid,
+        GridPosition,
+        GridSolution,
+        PlacedWord,
+    )
 
     mock_solution = GridSolution(
         grid=Grid(
