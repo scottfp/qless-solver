@@ -4,9 +4,6 @@ from collections import Counter  # Import Counter for mock solution
 
 import pytest
 from fastapi.testclient import TestClient
-import sys
-import os
-from collections import Counter  # Import Counter for mock solution
 
 # Add project root to sys.path to allow importing web.main
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -65,7 +62,7 @@ def test_solve_letters_api_json(client: TestClient, monkeypatch):
     )
 
     def mock_solve_qless_grid_func(letters: str, min_word_length: int):
-        if letters == "test":
+        if letters == "abcdefghijkl":
             return [mock_solution]
         return []
 
@@ -73,7 +70,7 @@ def test_solve_letters_api_json(client: TestClient, monkeypatch):
     monkeypatch.setattr("web.main.solve_qless_grid", mock_solve_qless_grid_func)
 
     response = client.post(
-        "/api/solve/", json={"letters": "test", "min_word_length": 4}
+        "/api/solve/", json={"letters": "abcdefghijkl", "min_word_length": 4}
     )
     assert response.status_code == 200
     json_response = response.json()
@@ -83,7 +80,7 @@ def test_solve_letters_api_json(client: TestClient, monkeypatch):
     assert json_response[0]["used_letters"] == {"t": 2, "e": 1, "s": 1}
 
     response_no_solution = client.post(
-        "/api/solve/", json={"letters": "xyz", "min_word_length": 3}
+        "/api/solve/", json={"letters": "zzzzzzzzzzzz", "min_word_length": 3}
     )
     assert response_no_solution.status_code == 200
     assert len(response_no_solution.json()) == 0
@@ -111,26 +108,29 @@ def test_solve_letters_htmx(client: TestClient, monkeypatch):
     )
 
     def mock_solve_qless_grid_for_htmx(letters: str, min_word_length: int):
-        if letters == "htmx":
+        if letters == "abcdefghijkl":
             return [mock_solution]
         return []
 
     monkeypatch.setattr("web.main.solve_qless_grid", mock_solve_qless_grid_for_htmx)
 
     response = client.post(
-        "/solve-htmx/", data={"letters": "htmx", "min_word_length": "4"}
+        "/solve-htmx/", data={"letters": "abcdefghijkl", "min_word_length": "4"}
     )
     assert response.status_code == 200
     assert response.headers["content-type"] == "text/html; charset=utf-8"
-    assert "Found 1 solution(s) for letters: <strong>htmx</strong>" in response.text
-    assert "htmx" in response.text
+    assert (
+        "Found 1 solution(s) for letters: <strong>abcdefghijkl</strong>"
+        in response.text
+    )
+    assert "abcdefghijkl" in response.text
 
     response_no_solution = client.post(
-        "/solve-htmx/", data={"letters": "none", "min_word_length": "4"}
+        "/solve-htmx/", data={"letters": "zzzzzzzzzzzz", "min_word_length": "4"}
     )
     assert response_no_solution.status_code == 200
     assert (
-        "No solutions found for letters: <strong>none</strong>"
+        "No solutions found for letters: <strong>zzzzzzzzzzzz</strong>"
         in response_no_solution.text
     )
 
@@ -141,7 +141,7 @@ def test_solve_api_error_handling(client: TestClient, monkeypatch):
 
     monkeypatch.setattr("web.main.solve_qless_grid", mock_solver_raises_exception)
     response = client.post(
-        "/api/solve/", json={"letters": "error", "min_word_length": 3}
+        "/api/solve/", json={"letters": "errorerrorer", "min_word_length": 3}
     )
     assert response.status_code == 500
     assert "Solver internal error" in response.json()["detail"]
@@ -153,7 +153,7 @@ def test_solve_api_dictionary_not_found(client: TestClient, monkeypatch):
 
     monkeypatch.setattr("web.main.solve_qless_grid", mock_solver_raises_file_not_found)
     response = client.post(
-        "/api/solve/", json={"letters": "dict_error", "min_word_length": 3}
+        "/api/solve/", json={"letters": "dicterrorbad", "min_word_length": 3}
     )
     assert response.status_code == 500
     # Check if the detail message contains the specific parts we expect
@@ -169,7 +169,7 @@ def test_solve_htmx_error_handling(client: TestClient, monkeypatch):
 
     monkeypatch.setattr("web.main.solve_qless_grid", mock_solver_raises_exception_htmx)
     response = client.post(
-        "/solve-htmx/", data={"letters": "error_htmx", "min_word_length": "3"}
+        "/solve-htmx/", data={"letters": "errorhtmxabc", "min_word_length": "3"}
     )
     assert response.status_code == 200  # HTMX endpoint returns HTML with error message
     assert (
@@ -179,13 +179,14 @@ def test_solve_htmx_error_handling(client: TestClient, monkeypatch):
 
 
 def test_solve_image_endpoint(client: TestClient, monkeypatch):
-    from qless_solver.grid_solver import (
-        GridSolution,
-        Grid,
-        PlacedWord,
-        GridPosition,
-    )
     from io import BytesIO
+
+    from qless_solver.grid_solver import (
+        Grid,
+        GridPosition,
+        GridSolution,
+        PlacedWord,
+    )
 
     mock_solution = GridSolution(
         grid=Grid(
@@ -200,10 +201,10 @@ def test_solve_image_endpoint(client: TestClient, monkeypatch):
     )
 
     def mock_detect_letters(_: bytes) -> str:
-        return "img"
+        return "abcdefghijkl"
 
     def mock_solve_qless_grid_func(letters: str, min_word_length: int):
-        if letters == "img":
+        if letters == "abcdefghijkl":
             return [mock_solution]
         return []
 

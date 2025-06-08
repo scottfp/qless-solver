@@ -3,8 +3,18 @@
         <p><strong>Error:</strong> {{ error_message }}</p>
         <p>Submitted letters: {{ letters_submitted }}, Min length: {{ min_word_length_submitted }}</p>
     </div>
+    <div class="letters-grid" style="grid-template-columns: repeat({{ letters_submitted|length }}, 30px);">
+        {% for letter in letters_submitted %}
+            <div class="grid-cell">{{ letter }}</div>
+        {% endfor %}
+    </div>
 {% elif solutions %}
     <p>Found {{ solutions|length }} solution(s) for letters: <strong>{{ letters_submitted }}</strong> (min length: {{ min_word_length_submitted }})</p>
+    <div class="letters-grid" style="grid-template-columns: repeat({{ letters_submitted|length }}, 30px); margin-bottom: 10px;">
+        {% for letter in letters_submitted %}
+            <div class="grid-cell">{{ letter }}</div>
+        {% endfor %}
+    </div>
     {% for sol_obj in solutions %}
         {% set solution = sol_obj.grid %} {# Assuming GridSolution has a 'grid' attribute of type Grid #}
         <div class="solution-item">
@@ -18,15 +28,14 @@
                 {% set min_y = solution.cells.keys()|map(attribute=1)|min %}
                 {% set max_y = solution.cells.keys()|map(attribute=1)|max %}
 
-                <div class="solution-grid">
+                {% set col_count = max_x - min_x + 1 %}
+                <div class="solution-grid" style="grid-template-columns: repeat({{ col_count }}, 30px);">
                     {% for r in range(min_y, max_y + 1) %}
-                        <div class="grid-row">
-                            {% for c in range(min_x, max_x + 1) %}
-                                <div class="grid-cell {% if not solution.cells.get((c, r)) %}empty{% endif %}">
-                                    {{ solution.cells.get((c, r), '') }}
-                                </div>
-                            {% endfor %}
-                        </div>
+                        {% for c in range(min_x, max_x + 1) %}
+                            <div class="grid-cell {% if not solution.cells.get((c, r)) %}empty{% endif %}">
+                                {{ solution.cells.get((c, r), '') }}
+                            </div>
+                        {% endfor %}
                     {% endfor %}
                 </div>
             {% else %}
@@ -37,4 +46,9 @@
     {% endfor %}
 {% else %}
     <p>No solutions found for letters: <strong>{{ letters_submitted }}</strong> (min length: {{ min_word_length_submitted }}).</p>
+    <div class="letters-grid" style="grid-template-columns: repeat({{ letters_submitted|length }}, 30px);">
+        {% for letter in letters_submitted %}
+            <div class="grid-cell">{{ letter }}</div>
+        {% endfor %}
+    </div>
 {% endif %}

@@ -1,10 +1,11 @@
-from fastapi import FastAPI, HTTPException, Request, Form, UploadFile, File
+import os
+import sys
+from typing import List  # Added Dict
+
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
-from typing import List, Dict  # Added Dict
-import sys
-import os
 
 # Add the cli directory to the Python path so qless_solver package is importable
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -13,8 +14,7 @@ if cli_path not in sys.path:
     sys.path.insert(0, cli_path)
 
 try:
-    from qless_solver.grid_solver import solve_qless_grid, GridSolution, Grid
-    from qless_solver.dictionary import Dictionary
+    from qless_solver.grid_solver import Grid, GridSolution, solve_qless_grid
     from qless_solver.image_detection import detect_letters
 except ImportError as e:
     print(f"Error importing solver modules: {e}")
@@ -55,22 +55,35 @@ async def solve_letters_htmx(
     Accepts letters and min_word_length from form data.
     Returns an HTML snippet with the solutions.
     """
+    letters = letters.strip()
     if solve_qless_grid is None:
-        return HTMLResponse(
-            "<div class='error'>Solver is not available due to an import error.</div>",
-            status_code=500,
+        error_message = "Solver is not available due to an import error."
+        return templates.TemplateResponse(
+            "results_snippet.html",
+            {
+                "request": request,
+                "solutions": [],
+                "error_message": error_message,
+                "letters_submitted": letters,
+                "min_word_length_submitted": min_word_length,
+            },
         )
-
     solutions: List[GridSolution] = []
     error_message = None
-    try:
-        solutions = solve_qless_grid(letters=letters, min_word_length=min_word_length)
-    except FileNotFoundError as e:
-        error_message = f"Dictionary file not found: {e}"
-        print(error_message)  # Log it
-    except Exception as e:
-        error_message = f"An error occurred during solving: {str(e)}"
-        print(error_message)  # Log it
+
+    if len(letters) != 12 or not letters.isalpha():
+        error_message = "Please enter exactly 12 alphabetic letters."
+    else:
+        try:
+            solutions = solve_qless_grid(
+                letters=letters, min_word_length=min_word_length
+            )
+        except FileNotFoundError as e:
+            error_message = f"Dictionary file not found: {e}"
+            print(error_message)  # Log it
+        except Exception as e:
+            error_message = f"An error occurred during solving: {str(e)}"
+            print(error_message)  # Log it
 
     # Render an HTML snippet template with the solutions or error
     return templates.TemplateResponse(
@@ -93,9 +106,16 @@ async def solve_letters_image(
 ):
     """Handle image upload, detect letters, and return solutions."""
     if solve_qless_grid is None or detect_letters is None:
-        return HTMLResponse(
-            "<div class='error'>Solver or detection unavailable.</div>",
-            status_code=500,
+        error_message = "Solver or detection unavailable."
+        return templates.TemplateResponse(
+            "results_snippet.html",
+            {
+                "request": request,
+                "solutions": [],
+                "error_message": error_message,
+                "letters_submitted": "",
+                "min_word_length_submitted": min_word_length,
+            },
         )
 
     content = await image.read()
@@ -103,17 +123,20 @@ async def solve_letters_image(
 
     solutions: List[GridSolution] = []
     error_message = None
-    try:
-        solutions = solve_qless_grid(
-            letters=detected,
-            min_word_length=min_word_length,
-        )
-    except FileNotFoundError as e:
-        error_message = f"Dictionary file not found: {e}"
-        print(error_message)
-    except Exception as e:
-        error_message = f"An error occurred during solving: {str(e)}"
-        print(error_message)
+    if len(detected) != 12 or not detected.isalpha():
+        error_message = "Detected letters were not exactly 12 alphabetic characters."
+    else:
+        try:
+            solutions = solve_qless_grid(
+                letters=detected,
+                min_word_length=min_word_length,
+            )
+        except FileNotFoundError as e:
+            error_message = f"Dictionary file not found: {e}"
+            print(error_message)
+        except Exception as e:
+            error_message = f"An error occurred during solving: {str(e)}"
+            print(error_message)
     # Render an HTML snippet template with the solutions or error
     return templates.TemplateResponse(
         "results_snippet.html",
@@ -139,9 +162,15 @@ async def solve_letters_api(request_body: SolveRequestBody) -> List[GridSolution
             status_code=500,
             detail="Solver function not available due to an import error.",
         )
+    letters = request_body.letters.strip()
+    if len(letters) != 12 or not letters.isalpha():
+        raise HTTPException(
+            status_code=400,
+            detail="Letters must be exactly 12 alphabetic characters.",
+        )
     try:
         solutions = solve_qless_grid(
-            letters=request_body.letters, min_word_length=request_body.min_word_length
+            letters=letters, min_word_length=request_body.min_word_length
         )
         return solutions
     except FileNotFoundError as e:
