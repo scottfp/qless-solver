@@ -130,16 +130,22 @@
             text-align: right;
             margin-bottom: 10px;
         }
+
+        .theme-toggle button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 24px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Q-less Solver</h1>
         <div class="theme-toggle">
-            <label>
-                <input type="checkbox" id="dark-mode-toggle">
-                Dark mode
-            </label>
+            <button id="dark-mode-toggle" aria-label="Toggle dark mode">
+                🌙
+            </button>
         </div>
 
         <form id="image-form"
@@ -185,13 +191,13 @@
 
     <script>
         // Dark mode toggle logic
-        const toggle = document.getElementById('dark-mode-toggle');
+        const toggleButton = document.getElementById('dark-mode-toggle');
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
         const storedPreference = localStorage.getItem('darkMode');
 
         function setMode(enabled) {
             document.documentElement.classList.toggle('dark-mode', enabled);
-            toggle.checked = enabled;
+            toggleButton.textContent = enabled ? '☀' : '🌙';
         }
 
         if (storedPreference === null) {
@@ -200,8 +206,8 @@
             setMode(storedPreference === 'true');
         }
 
-        toggle.addEventListener('change', () => {
-            const enabled = toggle.checked;
+        toggleButton.addEventListener('click', () => {
+            const enabled = !document.documentElement.classList.contains('dark-mode');
             localStorage.setItem('darkMode', enabled);
             setMode(enabled);
         });
