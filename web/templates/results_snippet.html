@@ -18,15 +18,14 @@
                 {% set min_y = solution.cells.keys()|map(attribute=1)|min %}
                 {% set max_y = solution.cells.keys()|map(attribute=1)|max %}
 
-                <div class="solution-grid">
+                {% set col_count = max_x - min_x + 1 %}
+                <div class="solution-grid" style="grid-template-columns: repeat({{ col_count }}, 30px);">
                     {% for r in range(min_y, max_y + 1) %}
-                        <div class="grid-row">
-                            {% for c in range(min_x, max_x + 1) %}
-                                <div class="grid-cell {% if not solution.cells.get((c, r)) %}empty{% endif %}">
-                                    {{ solution.cells.get((c, r), '') }}
-                                </div>
-                            {% endfor %}
-                        </div>
+                        {% for c in range(min_x, max_x + 1) %}
+                            <div class="grid-cell {% if not solution.cells.get((c, r)) %}empty{% endif %}">
+                                {{ solution.cells.get((c, r), '') }}
+                            </div>
+                        {% endfor %}
                     {% endfor %}
                 </div>
             {% else %}
