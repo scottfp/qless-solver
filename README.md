@@ -30,8 +30,8 @@ cd qless-solver
 python3.11 -m venv venv
 source venv/bin/activate  # On Windows, use: venv\Scripts\activate
 
-# Install dependencies
-pip install -e .
+# Install dependencies for development and testing
+pip install -e .[dev]
 
 # Option 2: Using uv (faster installation)
 # Install uv if you don't have it already
@@ -40,7 +40,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 # Install dependencies with uv
 uv venv -p 3.11
 source .venv/bin/activate  # On Windows, use: .venv\Scripts\activate
-uv pip install -e .
+uv pip install -e .[dev]
 ```
 
 ## Usage
