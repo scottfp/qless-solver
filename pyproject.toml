@@ -24,6 +24,9 @@ dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.20.0",
     "jinja2>=3.0.0",
+    "opencv-python-headless>=4.9.0.80",
+    "pytesseract>=0.3.10",
+    "easyocr>=1.7",
 ]
 
 [project.optional-dependencies]
