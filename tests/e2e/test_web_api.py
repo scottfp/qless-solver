@@ -107,27 +107,32 @@ def test_solve_letters_htmx(client: TestClient, monkeypatch):
         used_letters=Counter("htmx"),
     )
 
+    test_letters = "htmxabcdefgh"  # 12 letters
+
     def mock_solve_qless_grid_for_htmx(letters: str, min_word_length: int):
-        if letters == "htmx":
+        if letters == test_letters:
             return [mock_solution]
         return []
 
     monkeypatch.setattr("web.main.solve_qless_grid", mock_solve_qless_grid_for_htmx)
 
     response = client.post(
-        "/solve-htmx/", data={"letters": "htmx", "min_word_length": "4"}
+        "/solve-htmx/", data={"letters": test_letters, "min_word_length": "4"}
     )
     assert response.status_code == 200
     assert response.headers["content-type"] == "text/html; charset=utf-8"
-    assert "Found 1 solution(s) for letters: <strong>htmx</strong>" in response.text
-    assert "htmx" in response.text
+    assert (
+        f"Found 1 solution(s) for letters: <strong>{test_letters}</strong>"
+        in response.text
+    )
+    assert test_letters in response.text
 
     response_no_solution = client.post(
-        "/solve-htmx/", data={"letters": "none", "min_word_length": "4"}
+        "/solve-htmx/", data={"letters": "nonezzzzzzzz", "min_word_length": "4"}
     )
     assert response_no_solution.status_code == 200
     assert (
-        "No solutions found for letters: <strong>none</strong>"
+        "No solutions found for letters: <strong>nonezzzzzzzz</strong>"
         in response_no_solution.text
     )
 
@@ -166,13 +171,23 @@ def test_solve_htmx_error_handling(client: TestClient, monkeypatch):
 
     monkeypatch.setattr("web.main.solve_qless_grid", mock_solver_raises_exception_htmx)
     response = client.post(
-        "/solve-htmx/", data={"letters": "error_htmx", "min_word_length": "3"}
+        "/solve-htmx/", data={"letters": "errorhtmxabc", "min_word_length": "3"}
     )
     assert response.status_code == 200  # HTMX endpoint returns HTML with error message
     assert (
         "<strong>Error:</strong> An error occurred during solving: HTMX Solver internal error"
         in response.text
     )
+
+
+def test_solve_htmx_validation(client: TestClient):
+    response = client.post("/solve-htmx/", data={"letters": "short"})
+    assert response.status_code == 200
+    assert "Expected exactly 12 letters" in response.text
+
+    response = client.post("/solve-htmx/", data={"letters": "abc123defghi"})
+    assert response.status_code == 200
+    assert "Input must contain only letters" in response.text
 
 
 def test_solve_image_endpoint(client: TestClient, monkeypatch):
@@ -197,11 +212,13 @@ def test_solve_image_endpoint(client: TestClient, monkeypatch):
         used_letters=Counter("img"),
     )
 
+    test_letters_img = "imgabcdefghi"  # 12 letters
+
     def mock_detect_letters(_: bytes) -> str:
-        return "img"
+        return test_letters_img
 
     def mock_solve_qless_grid_func(letters: str, min_word_length: int):
-        if letters == "img":
+        if letters == test_letters_img:
             return [mock_solution]
         return []
 
@@ -216,3 +233,21 @@ def test_solve_image_endpoint(client: TestClient, monkeypatch):
     )
     assert response.status_code == 200
     assert "Found 1 solution(s)" in response.text
+
+
+def test_solve_image_validation(client: TestClient, monkeypatch):
+    from io import BytesIO
+
+    def mock_detect_letters(_: bytes) -> str:
+        return "abcd"
+
+    monkeypatch.setattr("web.main.detect_letters", mock_detect_letters)
+
+    fake_file = BytesIO(b"fake")
+    response = client.post(
+        "/solve-image/",
+        files={"image": ("test.png", fake_file, "image/png")},
+        data={"min_word_length": "3"},
+    )
+    assert response.status_code == 200
+    assert "Expected exactly 12 letters" in response.text

@@ -97,16 +97,24 @@ async def solve_letters_htmx(
             status_code=500,
         )
 
+    letters = letters.strip()
     solutions: List[GridSolution] = []
     error_message = None
-    try:
-        solutions = solve_qless_grid(letters=letters, min_word_length=min_word_length)
-    except FileNotFoundError as e:
-        error_message = f"Dictionary file not found: {e}"
-        print(error_message)  # Log it
-    except Exception as e:
-        error_message = f"An error occurred during solving: {str(e)}"
-        print(error_message)  # Log it
+    if len(letters) != 12:
+        error_message = f"Expected exactly 12 letters, got {len(letters)}"
+    elif not letters.isalpha():
+        error_message = "Input must contain only letters"
+    else:
+        try:
+            solutions = solve_qless_grid(
+                letters=letters, min_word_length=min_word_length
+            )
+        except FileNotFoundError as e:
+            error_message = f"Dictionary file not found: {e}"
+            print(error_message)  # Log it
+        except Exception as e:
+            error_message = f"An error occurred during solving: {str(e)}"
+            print(error_message)  # Log it
 
     # Render an HTML snippet template with the solutions or error
     return templates.TemplateResponse(
@@ -139,17 +147,22 @@ async def solve_letters_image(
 
     solutions: List[GridSolution] = []
     error_message = None
-    try:
-        solutions = solve_qless_grid(
-            letters=detected,
-            min_word_length=min_word_length,
-        )
-    except FileNotFoundError as e:
-        error_message = f"Dictionary file not found: {e}"
-        print(error_message)
-    except Exception as e:
-        error_message = f"An error occurred during solving: {str(e)}"
-        print(error_message)
+    if len(detected) != 12:
+        error_message = f"Expected exactly 12 letters, got {len(detected)}"
+    elif not detected.isalpha():
+        error_message = "Input must contain only letters"
+    else:
+        try:
+            solutions = solve_qless_grid(
+                letters=detected,
+                min_word_length=min_word_length,
+            )
+        except FileNotFoundError as e:
+            error_message = f"Dictionary file not found: {e}"
+            print(error_message)
+        except Exception as e:
+            error_message = f"An error occurred during solving: {str(e)}"
+            print(error_message)
     # Render an HTML snippet template with the solutions or error
     return templates.TemplateResponse(
         "results_snippet.html",
