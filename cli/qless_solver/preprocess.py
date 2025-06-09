@@ -27,7 +27,7 @@ def apply_threshold(image: np.ndarray) -> np.ndarray:
         255,
         cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
         cv2.THRESH_BINARY,
-        11,
-        2,
+        5,
+        0,
     )
     return thresh
