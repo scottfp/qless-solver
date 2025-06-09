@@ -63,6 +63,18 @@ qless-solver --letters "abcdefghijkl" --all-words
 qless-solver --help
 ```
 
+### Generating Candidate Golden Files
+
+To regenerate the thresholded images used by the OCR tests, run the helper
+script with an input image and the desired output path:
+
+```bash
+python scripts/generate_golden_file.py --input tests/images/input_01.png --output candidate_threshold.png
+```
+
+Inspect the generated file and move it into `tests/images` if it should replace
+an existing golden image.
+
 ## Running the Web UI
 
 The Q-less Solver includes a web-based user interface built with FastAPI and HTMX. To run it locally:
