@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import cv2
 import pytest
 from qless_solver.image_detection import detect_letters
 
@@ -9,6 +10,13 @@ ROLL_CASES = {
     "test_roll_3.jpg": "adwilkhldmes",
     "test_roll_4.jpg": "rmtoepngtnxc",
 }
+
+
+def test_can_load_golden_images() -> None:
+    """Verify that a golden image can be loaded with OpenCV."""
+    image_path = Path("tests/images") / "test_grid_1.jpg"
+    image = cv2.imread(str(image_path))
+    assert image is not None
 
 
 @pytest.mark.parametrize("filename,expected", ROLL_CASES.items())
