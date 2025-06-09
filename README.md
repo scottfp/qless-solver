@@ -33,6 +33,10 @@ source venv/bin/activate  # On Windows, use: venv\Scripts\activate
 # Install dependencies for development and testing
 pip install -e .[dev]
 
+# Install system packages required for OCR (optional)
+sudo apt-get update
+sudo apt-get install -y tesseract-ocr libgl1 libglib2.0-0
+
 # Option 2: Using uv (faster installation)
 # Install uv if you don't have it already
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -128,6 +132,7 @@ pre-commit run --all-files
 - **Code Quality**: Black, isort, mypy, ruff, pre-commit
 - **Development**: Dev Containers, GitHub Actions
 - **Data Validation**: Pydantic for robust data structures and validation
+- **Computer Vision/OCR**: OpenCV, EasyOCR, and Tesseract OCR
 
 ### Development Practices
 
