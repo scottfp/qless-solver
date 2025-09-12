@@ -28,7 +28,10 @@ jobs:
           # Name the image so it can be reused and cached for future runs
           imageName: ghcr.io/${{ github.repository }}/devcontainer
           # Cache from previous builds to speed things up
-          cacheFrom: ghcr.io/${{ github.repository }}/devcontainer
+          cacheFrom: |
+            ghcr.io/${{ github.repository }}/devcontainer
+            type=gha
+          cacheTo: type=gha,mode=max
           # Only push on main branch
           push: ${{ github.ref == 'refs/heads/main' && 'always' || 'never' }}
           # Run our tests inside the devcontainer
