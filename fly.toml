@@ -8,6 +8,7 @@ primary_region = "iad"
 [env]
   PORT = "8080"
   QLESS_DICTIONARY_PATH = "/app/dictionary.txt"
+  QLESS_COMMON_DICTIONARY_PATH = "/app/common_words.txt"
 
 [http_service]
   internal_port = 8080

@@ -9,7 +9,11 @@ import sys
 from typing import Optional
 
 from qless_solver import __version__
-from qless_solver.dictionary import Dictionary
+from qless_solver.dictionary import (
+    AVAILABLE_DICTIONARIES,
+    DEFAULT_DICTIONARY_NAME,
+    Dictionary,
+)
 from qless_solver.generator import generate_random_roll
 from qless_solver.grid_solver import solve_board
 
@@ -60,6 +64,16 @@ def parse_args(args: Optional[list[str]] = None) -> argparse.Namespace:
         "-a",
         action="store_true",
         help="Show all valid dictionary words formable from the letters",
+    )
+    parser.add_argument(
+        "--dictionary",
+        "-d",
+        choices=list(AVAILABLE_DICTIONARIES),
+        default=DEFAULT_DICTIONARY_NAME,
+        help=(
+            "Dictionary mode: 'full' (all NWL words with common words ranked first, "
+            "default) or 'common' (everyday English words only)"
+        ),
     )
     parser.add_argument(
         "--exclude",
@@ -117,10 +131,11 @@ def main() -> int:
         return 1
 
     excluded = _parse_excluded_words(args.exclude)
+    active_dict = Dictionary(mode=args.dictionary)
 
     if args.all_words:
         words = sorted(
-            Dictionary().get_valid_words(letters, min_length=args.min_word_length)
+            active_dict.get_valid_words(letters, min_length=args.min_word_length)
             - set(excluded),
             key=lambda w: (-len(w), w),
         )
@@ -129,11 +144,17 @@ def main() -> int:
             return 0
         print(f"Found {len(words)} valid word(s):")
         for word in words:
-            print(f"- {word}")
+            suffix = (
+                " (uncommon)"
+                if args.dictionary == "full" and not active_dict.is_common_word(word)
+                else ""
+            )
+            print(f"- {word}{suffix}")
         return 0
 
     boards = solve_board(
         letters=letters,
+        dictionary=active_dict,
         min_word_length=args.min_word_length,
         max_solutions=args.max_solutions,
         excluded_words=excluded or None,
@@ -143,11 +164,24 @@ def main() -> int:
         print("No solutions found.")
         return 0
 
+    has_uncommon = False
     print(f"Found {len(boards)} solution(s):")
     for i, board in enumerate(boards, 1):
-        words = [bw.word.upper() for bw in board.extract_runs(min_length=2)]
-        print(f"\nSolution {i} ({len(words)} words: {', '.join(words)}):")
+        formatted_words: list[str] = []
+        for bw in board.extract_runs(min_length=2):
+            upper = bw.word.upper()
+            if args.dictionary == "full" and not active_dict.is_common_word(bw.word):
+                has_uncommon = True
+                formatted_words.append(f"{upper}*")
+            else:
+                formatted_words.append(upper)
+        print(
+            f"\nSolution {i} ({len(formatted_words)} words: {', '.join(formatted_words)}):"
+        )
         print(board.to_ascii(empty_char=".").upper())
+
+    if has_uncommon:
+        print("\n* Not in Common English dictionary.")
 
     return 0
 

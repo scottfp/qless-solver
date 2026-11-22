@@ -311,19 +311,22 @@ def test_solve_board_seeded_random_dice_rolls_benchmark(
 def test_solve_board_excludes_primary_words(real_dict: Dictionary) -> None:
     baseline = solve_board("rmtoepngtnxc", dictionary=real_dict, max_solutions=3)
     assert baseline
-    assert any(w.word == "context" for w in baseline[0].extract_runs(min_length=2))
+    first_words = [w.word for w in baseline[0].extract_runs(min_length=2)]
+    assert first_words
+    assert all(real_dict.is_common_word(w) for w in first_words)
+    excluded_target = first_words[0]
 
     filtered = solve_board(
         "rmtoepngtnxc",
         dictionary=real_dict,
         max_solutions=5,
-        excluded_words=["CONTEXT"],
+        excluded_words=[excluded_target.upper()],
     )
     assert filtered
     for board in filtered:
         res = validate_board(board, "rmtoepngtnxc", real_dict)
         assert res.is_valid, res.errors
-        assert all(w.word != "context" for w in res.words)
+        assert all(w.word != excluded_target for w in res.words)
 
 
 def test_solve_board_excludes_perpendicular_cross_words() -> None:
@@ -346,3 +349,50 @@ def test_solve_board_excludes_perpendicular_cross_words() -> None:
 def test_solve_board_excluding_all_candidates_returns_empty() -> None:
     tiny_dict = Dictionary(words=["cat"])
     assert solve_board("cat", dictionary=tiny_dict, excluded_words=["cat"]) == []
+
+
+def test_score_board_prefers_common_words_over_compactness() -> None:
+    """Boards with fewer uncommon words rank ahead of smaller/fewer-word boards."""
+    custom = Dictionary(
+        words=["cat", "act", "xyzzyz"],
+        common_words=["cat", "act"],
+    )
+    common_two_words = Board.from_rows(["cat", ".c.", ".t."])
+    uncommon_one_word = Board.from_rows(["xyzzyz"])
+    assert score_board(common_two_words, custom) < score_board(
+        uncommon_one_word, custom
+    )
+
+    # Default 1-arg score_board uses the unified store's COMMON flag.
+    real_common_board = Board.from_rows(["cat", ".c.", ".t."])
+    real_obscure_board = Board.from_rows(["gorm"])
+    assert score_board(real_common_board) < score_board(real_obscure_board)
+
+
+def test_solve_board_common_first_and_common_mode(real_dict: Dictionary) -> None:
+    """Full mode surfaces all-common solutions first; common mode forbids obscure words."""
+    full_sols = solve_board("rmtoepngtnxc", dictionary=real_dict, max_solutions=5)
+    assert full_sols
+    top_words = [w.word for w in full_sols[0].extract_runs(min_length=2)]
+    assert all(real_dict.is_common_word(w) for w in top_words)
+    assert all(w not in {"mong", "erm", "rem", "gorm"} for w in top_words)
+
+    common_sols = solve_board(
+        "rmtoepngtnxc",
+        dictionary=real_dict,
+        dictionary_mode="common",
+        max_solutions=5,
+    )
+    assert common_sols
+    common_only_dict = real_dict.with_mode("common")
+    for board in common_sols:
+        res = validate_board(board, "rmtoepngtnxc", common_only_dict)
+        assert res.is_valid, res.errors
+        assert all(real_dict.is_common_word(w.word) for w in res.words)
+
+    # Synthetic case where the only solution uses an uncommon word.
+    synth = Dictionary(words=["cat", "aqw"], common_words=["cat"])
+    assert solve_board("ctaqw", dictionary=synth, dictionary_mode="common") == []
+    full_synth = solve_board("ctaqw", dictionary=synth, dictionary_mode="full")
+    assert len(full_synth) == 1
+    assert validate_board(full_synth[0], "ctaqw", synth).is_valid

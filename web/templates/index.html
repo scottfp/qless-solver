@@ -8,6 +8,7 @@
     <script src="https://unpkg.com/htmx.org@1.9.10" integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC" crossorigin="anonymous"></script>
     <style>
         :root {
+            color-scheme: light;
             --bg-color: #f4f5f7;
             --text-color: #1f2430;
             --muted-text: #5b6474;
@@ -45,6 +46,10 @@
             --badge-active-bg: #2563eb;
             --badge-active-border: #1d4ed8;
             --badge-active-text: #ffffff;
+            --uncommon-badge-bg: #fef3c7;
+            --uncommon-badge-border: #e5b95b;
+            --uncommon-badge-text: #92400e;
+            --uncommon-tag-bg: #fde68a;
             --def-bg: #f8f9fb;
             --def-border: #d8dde6;
             --exclude-bg: #fef2f2;
@@ -56,6 +61,7 @@
         }
 
         .dark-mode {
+            color-scheme: dark;
             --bg-color: #161920;
             --text-color: #e8ecf3;
             --muted-text: #9aa4b6;
@@ -93,6 +99,10 @@
             --badge-active-bg: #3b82f6;
             --badge-active-border: #60a5fa;
             --badge-active-text: #ffffff;
+            --uncommon-badge-bg: #3b2d18;
+            --uncommon-badge-border: #8a6424;
+            --uncommon-badge-text: #fcd34d;
+            --uncommon-tag-bg: #4d3819;
             --def-bg: #1b2030;
             --def-border: #343c50;
             --exclude-bg: #351c22;
@@ -217,13 +227,19 @@
 
         input[type="text"],
         input[type="number"],
-        input[type="file"] {
+        input[type="file"],
+        select {
             padding: 10px 12px;
             border: 1px solid var(--border-color);
             border-radius: 8px;
             background-color: var(--container-bg);
             color: var(--text-color);
+            font-family: inherit;
             font-size: 0.95rem;
+        }
+
+        select {
+            cursor: pointer;
         }
 
         #letters {
@@ -524,6 +540,9 @@
         }
 
         button.word-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
             background: transparent;
             border: none;
             border-radius: 0;
@@ -537,12 +556,50 @@
             transition: background-color 0.12s ease, color 0.12s ease;
         }
 
+        .word-chip.uncommon:not(.active) {
+            background-color: var(--uncommon-badge-bg);
+            border-color: var(--uncommon-badge-border);
+        }
+
+        .word-chip.uncommon:not(.active) button.word-badge {
+            color: var(--uncommon-badge-text);
+        }
+
+        .word-chip.uncommon:not(.active) button.word-exclude {
+            border-left-color: var(--uncommon-badge-border);
+            color: var(--uncommon-badge-text);
+        }
+
+        .word-chip.uncommon:not(.active) button.word-exclude:hover,
+        .word-chip.uncommon:not(.active) button.word-exclude:focus-visible {
+            background-color: var(--exclude-bg);
+            color: var(--exclude-text);
+        }
+
+        .word-tag {
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            padding: 1px 5px;
+            border-radius: 999px;
+            background-color: var(--uncommon-tag-bg);
+            color: var(--uncommon-badge-text);
+        }
+
         button.word-badge:hover,
         button.word-badge:focus-visible,
         button.word-badge.active {
             background-color: var(--badge-active-bg);
             color: var(--badge-active-text);
             outline: none;
+        }
+
+        .word-chip.uncommon.active .word-tag,
+        button.word-badge:hover .word-tag,
+        button.word-badge:focus-visible .word-tag {
+            background-color: rgba(255, 255, 255, 0.22);
+            color: #ffffff;
         }
 
         button.word-exclude {
@@ -591,6 +648,19 @@
             font-weight: 800;
             letter-spacing: 0.04em;
             margin-right: 6px;
+        }
+
+        .definition-tag {
+            display: inline-block;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 1px 7px;
+            border-radius: 999px;
+            margin-right: 6px;
+            background-color: var(--uncommon-badge-bg);
+            border: 1px solid var(--uncommon-badge-border);
+            color: var(--uncommon-badge-text);
+            vertical-align: middle;
         }
 
         .definition-hint {
@@ -726,6 +796,13 @@
                 </div>
                 <div class="controls-row">
                     <div class="field-compact">
+                        <label for="dictionary">Dictionary</label>
+                        <select id="dictionary" name="dictionary">
+                            <option value="full" selected>Full (Common first)</option>
+                            <option value="common">Common English</option>
+                        </select>
+                    </div>
+                    <div class="field-compact">
                         <label for="min_word_length">Min word length</label>
                         <input type="number" id="min_word_length" name="min_word_length" value="3" min="2" max="12">
                     </div>
@@ -772,6 +849,7 @@
                     <input type="file" id="image" name="image" accept="image/*" capture="environment" required>
                 </div>
                 <div class="controls-row">
+                    <input type="hidden" id="img_dictionary" name="dictionary" value="full">
                     <div class="field-compact">
                         <label for="img_min_word_length">Min word length</label>
                         <input type="number" id="img_min_word_length" name="min_word_length" value="3" min="2" max="12">
@@ -813,6 +891,8 @@
         const rollButton = document.getElementById('roll-dice-btn');
         const excludedInput = document.getElementById('excluded_words');
         const excludedBar = document.getElementById('excluded-words-bar');
+        const dictionarySelect = document.getElementById('dictionary');
+        const imgDictionaryInput = document.getElementById('img_dictionary');
         const resultsRegion = document.getElementById('results-region');
         const resultsContainer = document.getElementById('results-container');
         const resultsLoading = document.getElementById('results-loading');
@@ -932,6 +1012,15 @@
         solverForm.addEventListener('submit', () => {
             lastRollLetters = lettersInput.value.trim().toLowerCase();
         });
+
+        if (dictionarySelect) {
+            dictionarySelect.addEventListener('change', () => {
+                if (imgDictionaryInput) {
+                    imgDictionaryInput.value = dictionarySelect.value;
+                }
+                resubmitSolver();
+            });
+        }
 
         rollButton.addEventListener('click', async () => {
             rollButton.disabled = true;

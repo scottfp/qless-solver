@@ -32,6 +32,9 @@ def test_healthz_endpoint(client: TestClient) -> None:
     assert data["status"] == "ok"
     assert isinstance(data["dictionary_words"], int)
     assert data["dictionary_words"] > 1000
+    assert "dictionaries" in data
+    assert data["dictionaries"]["full"] == data["dictionary_words"]
+    assert 0 < data["dictionaries"]["common"] < data["dictionaries"]["full"]
 
 
 def test_read_root_html(client: TestClient) -> None:
@@ -41,6 +44,9 @@ def test_read_root_html(client: TestClient) -> None:
     assert "<title>Q-less Solver</title>" in response.text
     assert 'id="dark-mode-toggle"' in response.text
     assert 'id="roll-dice-btn"' in response.text
+    assert 'id="dictionary"' in response.text
+    assert 'value="full"' in response.text
+    assert 'value="common"' in response.text
     assert 'id="results-loading"' in response.text
     assert 'hx-sync="this:replace"' in response.text
     assert 'id="default-grid-wrapper"' not in response.text
@@ -340,7 +346,9 @@ def test_serialize_solutions_word_entries_cover_board_tiles() -> None:
         entries = sol["word_entries"]
         assert isinstance(entries, list)
         assert [e["word"] for e in entries] == sol["words"]
+        assert sol["uncommon_count"] == sum(1 for e in entries if not e["is_common"])
         for entry in entries:
+            assert isinstance(entry["is_common"], bool)
             assert entry["definition"]
             spelled = "".join(rows[y][x] for x, y in entry["cells"])
             assert spelled.upper() == entry["word"]
@@ -392,3 +400,135 @@ def test_solve_htmx_excluded_words(client: TestClient) -> None:
     assert "No solutions found" in empty_resp.text
     assert "excluding:" in empty_resp.text
     assert "ABCDEFGHIJKL" in empty_resp.text
+
+
+def test_solve_api_dictionary_modes(client: TestClient) -> None:
+    from qless_solver.board import Board, validate_board
+    from qless_solver.dictionary import Dictionary
+
+    for mode in ("common", "full"):
+        resp = client.post(
+            "/api/solve/",
+            json={
+                "letters": "rmtoepngtnxc",
+                "min_word_length": 3,
+                "max_solutions": 3,
+                "dictionary": mode,
+            },
+        )
+        assert resp.status_code == 200
+        solutions = resp.json()
+        assert 1 <= len(solutions) <= 3
+
+        mode_dict = Dictionary(mode=mode)
+        for sol in solutions:
+            parsed_cells = {
+                (int(k.split(",")[0]), int(k.split(",")[1])): v
+                for k, v in sol["grid"]["cells"].items()
+            }
+            res = validate_board(Board(cells=parsed_cells), "rmtoepngtnxc", mode_dict)
+            assert res.is_valid, res.errors
+
+    invalid = client.post(
+        "/api/solve/",
+        json={"letters": "rmtoepngtnxc", "dictionary": "invalid"},
+    )
+    assert invalid.status_code == 422
+
+
+def test_solve_htmx_dictionary_modes(client: TestClient) -> None:
+    from qless_solver.dictionary import Dictionary
+
+    full_dict = Dictionary(mode="full")
+    full_resp = client.post(
+        "/solve-htmx/",
+        data={
+            "letters": "rmtoepngtnxc",
+            "min_word_length": "3",
+            "max_solutions": "5",
+            "dictionary": "full",
+        },
+    )
+    assert full_resp.status_code == 200
+    assert "Full Scrabble" in full_resp.text
+    assert "Found " in full_resp.text
+
+    common_resp = client.post(
+        "/solve-htmx/",
+        data={
+            "letters": "rmtoepngtnxc",
+            "min_word_length": "3",
+            "max_solutions": "5",
+            "dictionary": "common",
+        },
+    )
+    assert common_resp.status_code == 200
+    assert "Common English" in common_resp.text
+    assert "Found " in common_resp.text
+    assert '"word": "MONG"' not in common_resp.text
+    assert '"word": "GORM"' not in common_resp.text
+    assert full_dict.is_common_word("cogent")
+
+    empty_common = client.post(
+        "/solve-htmx/",
+        data={
+            "letters": "abcdefghijkl",
+            "min_word_length": "12",
+            "max_solutions": "3",
+            "dictionary": "common",
+        },
+    )
+    assert empty_common.status_code == 200
+    assert "Common English" in empty_common.text
+    assert "Full (Common first)" in empty_common.text
+
+    bad_dict = client.post(
+        "/solve-htmx/",
+        data={"letters": "rmtoepngtnxc", "dictionary": "oxford"},
+    )
+    assert bad_dict.status_code == 200
+    assert "Unknown dictionary" in bad_dict.text
+
+
+def test_solve_htmx_notes_uncommon_words(client: TestClient) -> None:
+    full_many = client.post(
+        "/solve-htmx/",
+        data={
+            "letters": "rmtoepngtnxc",
+            "min_word_length": "3",
+            "max_solutions": "10",
+            "dictionary": "full",
+        },
+    )
+    assert full_many.status_code == 200
+    assert '"is_common": false' in full_many.text
+    assert '"uncommon_count": 1' in full_many.text
+
+    common_many = client.post(
+        "/solve-htmx/",
+        data={
+            "letters": "rmtoepngtnxc",
+            "min_word_length": "3",
+            "max_solutions": "10",
+            "dictionary": "common",
+        },
+    )
+    assert common_many.status_code == 200
+    assert '"is_common": false' not in common_many.text
+    assert '"uncommon_count": 0' in common_many.text
+
+    # Force an uncommon word into Solution 1 so initial Jinja HTML renders the badge.
+    uncommon_first = client.post(
+        "/solve-htmx/",
+        data={
+            "letters": "rmtoepngtnxc",
+            "min_word_length": "3",
+            "max_solutions": "3",
+            "dictionary": "full",
+            "excluded_words": "cogent,prong,context,prom",
+        },
+    )
+    assert uncommon_first.status_code == 200
+    assert 'class="word-chip uncommon"' in uncommon_first.text
+    assert '<span class="word-tag">uncommon</span>' in uncommon_first.text
+    assert "uncommon" in uncommon_first.text

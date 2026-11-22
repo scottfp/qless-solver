@@ -15,7 +15,7 @@
         <p class="results-summary">
             Found {{ solutions|length }} solution(s) for letters:
             <strong>{{ letters_submitted }}</strong>
-            (min length: {{ min_word_length_submitted }})
+            (min length: {{ min_word_length_submitted }} &middot; {{ dictionary_label or 'Full Scrabble' }})
         </p>
 
         <div class="carousel-stage">
@@ -38,13 +38,14 @@
         <div class="carousel-meta">
             <span id="result-counter">Solution 1 of {{ solutions|length }}</span>
             &middot;
-            <span id="result-meta">{{ first_sol.word_count }} words ({{ first_sol.dimensions }})</span>
+            <span id="result-meta">{{ first_sol.word_count }} words ({{ first_sol.dimensions }}){% if first_sol.uncommon_count %} &middot; {{ first_sol.uncommon_count }} uncommon{% endif %}</span>
         </div>
 
         <div id="result-words" class="word-list">
             {% for entry in first_sol.word_entries %}
-                <span class="word-chip" data-word-idx="{{ loop.index0 }}">
-                    <button type="button" class="word-badge" data-word-idx="{{ loop.index0 }}" title="{{ entry.definition or 'Definition unavailable' }}">{{ entry.word }}</button>
+                {% set is_uncommon = (entry.is_common is defined and not entry.is_common) %}
+                <span class="word-chip{% if is_uncommon %} uncommon{% endif %}" data-word-idx="{{ loop.index0 }}">
+                    <button type="button" class="word-badge" data-word-idx="{{ loop.index0 }}" title="{% if is_uncommon %}[Not in Common English] {% endif %}{{ entry.definition or 'Definition unavailable' }}">{{ entry.word }}{% if is_uncommon %}<span class="word-tag">uncommon</span>{% endif %}</button>
                     <button type="button" class="word-exclude" data-word="{{ entry.word }}" data-word-idx="{{ loop.index0 }}" title="Exclude {{ entry.word }} and re-solve" aria-label="Exclude {{ entry.word }}">&times;</button>
                 </span>
             {% endfor %}
@@ -78,7 +79,7 @@
 
             function entriesFor(sol) {
                 return sol.word_entries
-                    || (sol.words || []).map((w) => ({ word: w, definition: null, cells: [] }));
+                    || (sol.words || []).map((w) => ({ word: w, definition: null, cells: [], is_common: true }));
             }
 
             function cellsOf(wordIdx) {
@@ -137,7 +138,14 @@
                 const textSpan = document.createElement('span');
                 textSpan.className = 'definition-text';
                 textSpan.textContent = entry.definition || 'Definition unavailable.';
-                defEl.append(wordSpan, textSpan);
+                if (entry.is_common === false) {
+                    const tagSpan = document.createElement('span');
+                    tagSpan.className = 'definition-tag';
+                    tagSpan.textContent = 'Not in Common English';
+                    defEl.append(wordSpan, tagSpan, textSpan);
+                } else {
+                    defEl.append(wordSpan, textSpan);
+                }
             }
 
             function bindWordChip(chip) {
@@ -195,20 +203,33 @@
                 });
 
                 counterEl.textContent = `Solution ${idx + 1} of ${solutions.length}`;
-                metaEl.textContent = `${sol.word_count} words (${sol.dimensions})`;
+                const uncommonSuffix = sol.uncommon_count
+                    ? ` · ${sol.uncommon_count} uncommon`
+                    : '';
+                metaEl.textContent = `${sol.word_count} words (${sol.dimensions})${uncommonSuffix}`;
 
                 wordsEl.replaceChildren();
                 entriesFor(sol).forEach((entry, wordIdx) => {
+                    const isUncommon = entry.is_common === false;
                     const chip = document.createElement('span');
-                    chip.className = 'word-chip';
+                    chip.className = 'word-chip' + (isUncommon ? ' uncommon' : '');
                     chip.dataset.wordIdx = String(wordIdx);
 
                     const badge = document.createElement('button');
                     badge.type = 'button';
                     badge.className = 'word-badge';
                     badge.dataset.wordIdx = String(wordIdx);
-                    badge.title = entry.definition || 'Definition unavailable';
-                    badge.textContent = entry.word;
+                    const defText = entry.definition || 'Definition unavailable';
+                    badge.title = isUncommon
+                        ? `[Not in Common English] ${defText}`
+                        : defText;
+                    badge.append(document.createTextNode(entry.word));
+                    if (isUncommon) {
+                        const tag = document.createElement('span');
+                        tag.className = 'word-tag';
+                        tag.textContent = 'uncommon';
+                        badge.appendChild(tag);
+                    }
 
                     const excludeBtn = document.createElement('button');
                     excludeBtn.type = 'button';
@@ -293,7 +314,10 @@
     <div class="info">
         <p>
             No solutions found for letters: <strong>{{ letters_submitted }}</strong>
-            (min length: {{ min_word_length_submitted }}{% if excluded_words_submitted %}, excluding: <strong>{{ excluded_words_submitted|join(', ') }}</strong>{% endif %}).
+            (min length: {{ min_word_length_submitted }} &middot; {{ dictionary_label or 'Full Scrabble' }}{% if excluded_words_submitted %}, excluding: <strong>{{ excluded_words_submitted|join(', ') }}</strong>{% endif %}).
         </p>
+        {% if dictionary_submitted == 'common' %}
+            <p>Tip: Try switching the dictionary to <strong>Full (Common first)</strong> for broader Scrabble word coverage.</p>
+        {% endif %}
     </div>
 {% endif %}

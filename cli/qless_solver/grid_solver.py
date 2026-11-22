@@ -8,7 +8,7 @@ from typing import Iterable, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 from qless_solver.board import Board, CanonicalBoardKey, Direction
-from qless_solver.dictionary import Dictionary
+from qless_solver.dictionary import Dictionary, DictionaryName, is_common_word
 
 
 class GridPosition(BaseModel):
@@ -65,11 +65,24 @@ class GridSolution(BaseModel):
         return self.grid.to_board()
 
 
-def score_board(board: Board) -> tuple[int, int, int, CanonicalBoardKey]:
-    """Rank boards cleanly: fewer words, smaller area, squarer shape, deterministic key."""
+def score_board(
+    board: Board,
+    dictionary: Optional[Dictionary] = None,
+) -> tuple[int, int, int, int, CanonicalBoardKey]:
+    """Rank boards: common words first, fewer words, smaller area, squarer shape."""
     words = board.extract_runs(min_length=2)
+    uncommon_count = sum(
+        1
+        for bw in words
+        if not (
+            dictionary.is_common_word(bw.word)
+            if dictionary is not None
+            else is_common_word(bw.word)
+        )
+    )
     width, height = board.dimensions()
     return (
+        uncommon_count,
         len(words),
         width * height,
         abs(width - height),
@@ -190,54 +203,27 @@ def _try_place(
     return new_cells
 
 
-def solve_board(
-    letters: str,
+def _search_pass(
+    candidates: list[str],
+    pass_dict: Dictionary,
+    initial_counts: Counter[str],
+    total_tiles: int,
     *,
-    dictionary: Optional[Dictionary] = None,
-    min_word_length: int = 3,
-    max_solutions: Optional[int] = 10,
-    allow_duplicates: bool = False,
-    allow_single_word: bool = True,
-    deduplicate_transpose: bool = True,
-    timeout_seconds: Optional[float] = 5.0,
-    max_nodes: Optional[int] = 200_000,
-    excluded_words: Optional[Iterable[str]] = None,
-) -> list[Board]:
-    """Find valid Q-Less ``Board`` arrangements for ``letters``."""
-    if min_word_length < 2:
-        raise ValueError("min_word_length must be at least 2")
-    if max_solutions is not None and max_solutions <= 0:
-        return []
-
-    cleaned = letters.strip().lower()
-    if (
-        not cleaned
-        or not cleaned.isascii()
-        or not cleaned.isalpha()
-        or len(cleaned) < min_word_length
-    ):
-        return []
-
-    excluded: frozenset[str] = (
-        frozenset(
-            cleaned_w
-            for w in excluded_words
-            for cleaned_w in (w.strip().lower(),)
-            if cleaned_w and cleaned_w.isascii() and cleaned_w.isalpha()
-        )
-        if excluded_words is not None
-        else frozenset()
-    )
-
-    active_dict = dictionary if dictionary is not None else Dictionary()
-    candidates = sorted(
-        active_dict.get_valid_words(cleaned, min_length=min_word_length) - excluded
-    )
+    min_word_length: int,
+    max_solutions: Optional[int],
+    allow_duplicates: bool,
+    allow_single_word: bool,
+    deduplicate_transpose: bool,
+    excluded: frozenset[str],
+    deadline: Optional[float],
+    max_nodes: Optional[int],
+    canonical_solutions: list[Board],
+    seen_solutions: set[CanonicalBoardKey],
+    expanded_count: int,
+) -> tuple[int, int]:
+    """Run one DFS pass over ``candidates`` and return ``(expanded_count, nodes_used)``."""
     if not candidates:
-        return []
-
-    initial_counts = Counter(cleaned)
-    total_tiles = len(cleaned)
+        return expanded_count, 0
 
     df: Counter[str] = Counter()
     for word in candidates:
@@ -247,16 +233,17 @@ def solve_board(
     # Every tile letter must appear in at least one valid candidate word
     for ch in initial_counts:
         if df[ch] == 0:
-            return []
+            return expanded_count, 0
 
-    def _word_priority(word: str) -> tuple[int, float, str]:
+    def _word_priority(word: str) -> tuple[int, int, float, str]:
         rarity = sum(1.0 / df[ch] for ch in set(word))
-        return (-len(word), -rarity, word)
+        common_rank = 0 if pass_dict.is_common_word(word) else 1
+        return (common_rank, -len(word), -rarity, word)
 
-    candidates.sort(key=_word_priority)
+    ordered_candidates = sorted(candidates, key=_word_priority)
 
     by_letter: dict[str, list[tuple[str, int]]] = defaultdict(list)
-    for word in candidates:
+    for word in ordered_candidates:
         for idx, ch in enumerate(word):
             by_letter[ch].append((word, idx))
 
@@ -264,22 +251,16 @@ def solve_board(
     rarest_ch = min(initial_counts, key=lambda ch: (df[ch], ch))
     seed_words = [
         word
-        for word in candidates
+        for word in ordered_candidates
         if rarest_ch in word and (allow_single_word or len(word) < total_tiles)
     ]
     if not seed_words:
-        return []
+        return expanded_count, 0
 
     cells: dict[tuple[int, int], str] = {}
     rem = initial_counts.copy()
-    canonical_solutions: list[Board] = []
-    seen_solutions: set[CanonicalBoardKey] = set()
     visited_states: set[CanonicalBoardKey] = set()
-    expanded_count = 0
     nodes = 0
-    deadline = (
-        time.perf_counter() + timeout_seconds if timeout_seconds is not None else None
-    )
 
     def _limit_reached() -> bool:
         if max_solutions is not None:
@@ -358,7 +339,7 @@ def solve_board(
                             direction,
                             cells,
                             rem,
-                            active_dict,
+                            pass_dict,
                             min_word_length,
                             excluded,
                         )
@@ -394,7 +375,144 @@ def solve_board(
         for ch in seed:
             rem[ch] += 1
 
-    canonical_solutions.sort(key=score_board)
+    return expanded_count, nodes
+
+
+def _resolve_active_dictionary(
+    dictionary: Optional[Dictionary],
+    dictionary_mode: Optional[DictionaryName],
+) -> Dictionary:
+    if dictionary is None:
+        return (
+            Dictionary()
+            if dictionary_mode is None
+            else Dictionary(mode=dictionary_mode)
+        )
+    if dictionary_mode is not None:
+        return dictionary.with_mode(dictionary_mode)
+    return dictionary
+
+
+def solve_board(
+    letters: str,
+    *,
+    dictionary: Optional[Dictionary] = None,
+    dictionary_mode: Optional[DictionaryName] = None,
+    min_word_length: int = 3,
+    max_solutions: Optional[int] = 10,
+    allow_duplicates: bool = False,
+    allow_single_word: bool = True,
+    deduplicate_transpose: bool = True,
+    timeout_seconds: Optional[float] = 5.0,
+    max_nodes: Optional[int] = 200_000,
+    excluded_words: Optional[Iterable[str]] = None,
+) -> list[Board]:
+    """Find valid Q-Less ``Board`` arrangements for ``letters``."""
+    if min_word_length < 2:
+        raise ValueError("min_word_length must be at least 2")
+    if max_solutions is not None and max_solutions <= 0:
+        return []
+
+    cleaned = letters.strip().lower()
+    if (
+        not cleaned
+        or not cleaned.isascii()
+        or not cleaned.isalpha()
+        or len(cleaned) < min_word_length
+    ):
+        return []
+
+    excluded: frozenset[str] = (
+        frozenset(
+            cleaned_w
+            for w in excluded_words
+            for cleaned_w in (w.strip().lower(),)
+            if cleaned_w and cleaned_w.isascii() and cleaned_w.isalpha()
+        )
+        if excluded_words is not None
+        else frozenset()
+    )
+
+    active_dict = _resolve_active_dictionary(dictionary, dictionary_mode)
+    all_candidates = sorted(
+        active_dict.get_valid_words(cleaned, min_length=min_word_length) - excluded
+    )
+    if not all_candidates:
+        return []
+
+    initial_counts = Counter(cleaned)
+    total_tiles = len(cleaned)
+
+    canonical_solutions: list[Board] = []
+    seen_solutions: set[CanonicalBoardKey] = set()
+    expanded_count = 0
+    overall_deadline = (
+        time.perf_counter() + timeout_seconds if timeout_seconds is not None else None
+    )
+    remaining_nodes = max_nodes
+
+    if active_dict.has_uncommon_words():
+        common_candidates = [w for w in all_candidates if active_dict.is_common_word(w)]
+        if common_candidates:
+            pass1_deadline = (
+                min(overall_deadline, time.perf_counter() + timeout_seconds * 0.5)
+                if overall_deadline is not None and timeout_seconds is not None
+                else None
+            )
+            pass1_max_nodes = max(1, max_nodes // 2) if max_nodes is not None else None
+            expanded_count, pass1_nodes = _search_pass(
+                common_candidates,
+                active_dict.with_mode("common"),
+                initial_counts,
+                total_tiles,
+                min_word_length=min_word_length,
+                max_solutions=max_solutions,
+                allow_duplicates=allow_duplicates,
+                allow_single_word=allow_single_word,
+                deduplicate_transpose=deduplicate_transpose,
+                excluded=excluded,
+                deadline=pass1_deadline,
+                max_nodes=pass1_max_nodes,
+                canonical_solutions=canonical_solutions,
+                seen_solutions=seen_solutions,
+                expanded_count=expanded_count,
+            )
+            if remaining_nodes is not None:
+                remaining_nodes -= pass1_nodes
+
+    def _need_more_solutions() -> bool:
+        if max_solutions is not None:
+            current = (
+                len(canonical_solutions) if deduplicate_transpose else expanded_count
+            )
+            if current >= max_solutions:
+                return False
+        if overall_deadline is not None and time.perf_counter() > overall_deadline:
+            return False
+        if remaining_nodes is not None and remaining_nodes <= 0:
+            return False
+        return True
+
+    if _need_more_solutions():
+        expanded_count, _ = _search_pass(
+            all_candidates,
+            active_dict,
+            initial_counts,
+            total_tiles,
+            min_word_length=min_word_length,
+            max_solutions=max_solutions,
+            allow_duplicates=allow_duplicates,
+            allow_single_word=allow_single_word,
+            deduplicate_transpose=deduplicate_transpose,
+            excluded=excluded,
+            deadline=overall_deadline,
+            max_nodes=remaining_nodes,
+            canonical_solutions=canonical_solutions,
+            seen_solutions=seen_solutions,
+            expanded_count=expanded_count,
+        )
+
+    canonical_solutions.sort(key=lambda b: score_board(b, active_dict))
 
     if deduplicate_transpose:
         return (
@@ -420,6 +538,7 @@ def solve_qless_grid(
     min_word_length: int = 3,
     *,
     dictionary: Optional[Dictionary] = None,
+    dictionary_mode: Optional[DictionaryName] = None,
     max_solutions: Optional[int] = 10,
     allow_duplicates: bool = False,
     allow_single_word: bool = True,
@@ -432,6 +551,7 @@ def solve_qless_grid(
     boards = solve_board(
         letters,
         dictionary=dictionary,
+        dictionary_mode=dictionary_mode,
         min_word_length=min_word_length,
         max_solutions=max_solutions,
         allow_duplicates=allow_duplicates,

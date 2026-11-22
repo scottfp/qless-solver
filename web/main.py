@@ -19,13 +19,21 @@ if cli_path not in sys.path:
     sys.path.insert(0, cli_path)
 
 try:
-    from qless_solver.dictionary import Dictionary
+    from qless_solver.dictionary import (
+        DEFAULT_DICTIONARY_NAME,
+        Dictionary,
+        DictionaryName,
+        normalize_dictionary_name,
+    )
     from qless_solver.generator import generate_random_roll
     from qless_solver.grid_solver import Grid, GridSolution, solve_qless_grid
     from qless_solver.image_detection import detect_letters
 except ImportError as e:
     print(f"Error importing solver modules: {e}")
+    DEFAULT_DICTIONARY_NAME = "full"  # type: ignore[assignment]
     Dictionary = None  # type: ignore[assignment,misc]
+    DictionaryName = str  # type: ignore[assignment,misc]
+    normalize_dictionary_name = None  # type: ignore[assignment]
     generate_random_roll = None  # type: ignore[assignment]
     solve_qless_grid = None  # type: ignore[assignment]
     GridSolution = None  # type: ignore[assignment,misc]
@@ -33,18 +41,24 @@ except ImportError as e:
     detect_letters = None  # type: ignore[assignment]
 
 _DICTIONARY_INSTANCE: Optional[Dictionary] = None
+DICTIONARY_LABELS: dict[str, str] = {
+    "full": "Full Scrabble",
+    "common": "Common English",
+}
 
 
-def get_dictionary() -> Optional[Dictionary]:
-    """Return a shared cached Dictionary instance for web requests."""
+def get_dictionary(
+    mode: DictionaryName = DEFAULT_DICTIONARY_NAME,
+) -> Optional[Dictionary]:
+    """Return a shared zero-copy Dictionary view for web requests."""
     global _DICTIONARY_INSTANCE
     if Dictionary is None:
         return None
     if _DICTIONARY_INSTANCE is None:
-        _DICTIONARY_INSTANCE = Dictionary()
-        # Warm the bitmask index once so subsequent solves stay fast
+        _DICTIONARY_INSTANCE = Dictionary(mode=DEFAULT_DICTIONARY_NAME)
+        # Warm the unified bitmask index once so subsequent solves stay fast
         _DICTIONARY_INSTANCE.get_valid_words("rmtoepngtnxc")
-    return _DICTIONARY_INSTANCE
+    return _DICTIONARY_INSTANCE.with_mode(mode)
 
 
 @asynccontextmanager
@@ -67,6 +81,18 @@ class SolveRequestBody(BaseModel):
     min_word_length: int = 3
     max_solutions: int = Field(default=10, ge=1, le=50)
     excluded_words: list[str] = Field(default_factory=list)
+    dictionary: DictionaryName = DEFAULT_DICTIONARY_NAME
+
+
+def _resolve_form_dictionary(
+    raw_dictionary: str,
+) -> tuple[DictionaryName, Optional[str]]:
+    if normalize_dictionary_name is None:
+        return DEFAULT_DICTIONARY_NAME, None
+    try:
+        return normalize_dictionary_name(raw_dictionary), None
+    except ValueError as exc:
+        return DEFAULT_DICTIONARY_NAME, str(exc)
 
 
 def parse_excluded_words(raw: Optional[str | list[str]]) -> list[str]:
@@ -99,9 +125,12 @@ def validate_letter_input(
 
 
 def _build_word_entries(
-    sol: GridSolution, board_words: list[str], definitions: dict[str, Optional[str]]
+    sol: GridSolution,
+    board_words: list[str],
+    definitions: dict[str, Optional[str]],
+    dictionary: Optional[Dictionary] = None,
 ) -> list[dict[str, object]]:
-    """Pair each solution word with its definition and normalized tile coordinates."""
+    """Pair each solution word with its definition, commonality, and tile coordinates."""
     runs: dict[str, list[list[list[int]]]] = {}
     board = sol.to_board().normalize()
     for run in sorted(
@@ -113,7 +142,14 @@ def _build_word_entries(
         matches = runs.get(word)
         cells = matches.pop(0) if matches else []
         entries.append(
-            {"word": word, "definition": definitions.get(word), "cells": cells}
+            {
+                "word": word,
+                "definition": definitions.get(word),
+                "cells": cells,
+                "is_common": (
+                    dictionary.is_common_word(word) if dictionary is not None else True
+                ),
+            }
         )
     return entries
 
@@ -131,12 +167,15 @@ def _serialize_solutions(
         board = sol.to_board()
         width, height = board.dimensions()
         words = [pw.word.upper() for pw in sol.grid.words]
+        word_entries = _build_word_entries(sol, words, definitions, dictionary)
+        uncommon_count = sum(1 for entry in word_entries if not entry["is_common"])
         serialized.append(
             {
                 "rows": board.to_rows(),
                 "words": words,
-                "word_entries": _build_word_entries(sol, words, definitions),
+                "word_entries": word_entries,
                 "word_count": len(words),
+                "uncommon_count": uncommon_count,
                 "dimensions": f"{width}x{height}",
             }
         )
@@ -148,10 +187,22 @@ async def healthz() -> JSONResponse:
     """Health check endpoint verifying solver and dictionary readiness."""
     if solve_qless_grid is None:
         raise HTTPException(status_code=503, detail="Solver unavailable")
-    dictionary = get_dictionary()
-    if dictionary is None or not dictionary.words:
+    full_dict = get_dictionary("full")
+    common_dict = get_dictionary("common")
+    if full_dict is None or common_dict is None or not full_dict.words:
         raise HTTPException(status_code=503, detail="Dictionary unavailable")
-    return JSONResponse({"status": "ok", "dictionary_words": len(dictionary.words)})
+    full_count = len(full_dict)
+    common_count = len(common_dict)
+    return JSONResponse(
+        {
+            "status": "ok",
+            "dictionary_words": full_count,
+            "dictionaries": {
+                "full": full_count,
+                "common": common_count,
+            },
+        }
+    )
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -177,6 +228,7 @@ async def solve_letters_htmx(
     min_word_length: int = Form(3),
     max_solutions: int = Form(10),
     excluded_words: str = Form(""),
+    dictionary: str = Form(DEFAULT_DICTIONARY_NAME),
 ) -> HTMLResponse:
     """Endpoint for HTMX form submission returning an interactive HTML results snippet."""
     if solve_qless_grid is None:
@@ -186,10 +238,12 @@ async def solve_letters_htmx(
         )
 
     cleaned, validation_error = validate_letter_input(letters, min_word_length)
+    dict_mode, dict_error = _resolve_form_dictionary(dictionary)
     clamped_max = max(1, min(max_solutions, 50))
     excluded = parse_excluded_words(excluded_words)
     solutions: list[GridSolution] = []
-    error_message = validation_error
+    error_message = validation_error or dict_error
+    active_dict = get_dictionary(dict_mode) if error_message is None else None
 
     if error_message is None:
         try:
@@ -197,7 +251,7 @@ async def solve_letters_htmx(
                 solve_qless_grid,
                 letters=cleaned,
                 min_word_length=min_word_length,
-                dictionary=get_dictionary(),
+                dictionary=active_dict,
                 max_solutions=clamped_max,
                 timeout_seconds=3.0,
                 excluded_words=excluded or None,
@@ -215,13 +269,15 @@ async def solve_letters_htmx(
         {
             "solutions": solutions,
             "serialized_solutions": await asyncio.to_thread(
-                _serialize_solutions, solutions, get_dictionary()
+                _serialize_solutions, solutions, active_dict
             ),
             "error_message": error_message,
             "info_message": None,
             "letters_submitted": cleaned,
             "min_word_length_submitted": min_word_length,
             "excluded_words_submitted": [w.upper() for w in excluded],
+            "dictionary_submitted": dict_mode,
+            "dictionary_label": DICTIONARY_LABELS.get(dict_mode, dict_mode.title()),
         },
     )
 
@@ -231,6 +287,7 @@ async def solve_letters_image(
     request: Request,
     image: UploadFile = File(...),
     min_word_length: int = Form(3),
+    dictionary: str = Form(DEFAULT_DICTIONARY_NAME),
 ) -> HTMLResponse:
     """Handle image upload, detect letters, and return solutions."""
     if solve_qless_grid is None or detect_letters is None:
@@ -239,6 +296,7 @@ async def solve_letters_image(
             status_code=500,
         )
 
+    dict_mode, dict_error = _resolve_form_dictionary(dictionary)
     content = await image.read()
     detected = detect_letters(content)
 
@@ -249,20 +307,27 @@ async def solve_letters_image(
             {
                 "solutions": [],
                 "serialized_solutions": [],
-                "error_message": None,
+                "error_message": dict_error,
                 "info_message": (
-                    "Automatic photo letter detection is not implemented yet. "
-                    "Please enter your 12 rolled letters manually above."
+                    None
+                    if dict_error
+                    else (
+                        "Automatic photo letter detection is not implemented yet. "
+                        "Please enter your 12 rolled letters manually above."
+                    )
                 ),
                 "letters_submitted": "",
                 "min_word_length_submitted": min_word_length,
                 "excluded_words_submitted": [],
+                "dictionary_submitted": dict_mode,
+                "dictionary_label": DICTIONARY_LABELS.get(dict_mode, dict_mode.title()),
             },
         )
 
     cleaned, validation_error = validate_letter_input(detected, min_word_length)
     solutions: list[GridSolution] = []
-    error_message = validation_error
+    error_message = validation_error or dict_error
+    active_dict = get_dictionary(dict_mode) if error_message is None else None
 
     if error_message is None:
         try:
@@ -270,7 +335,7 @@ async def solve_letters_image(
                 solve_qless_grid,
                 letters=cleaned,
                 min_word_length=min_word_length,
-                dictionary=get_dictionary(),
+                dictionary=active_dict,
                 max_solutions=10,
                 timeout_seconds=3.0,
             )
@@ -287,13 +352,15 @@ async def solve_letters_image(
         {
             "solutions": solutions,
             "serialized_solutions": await asyncio.to_thread(
-                _serialize_solutions, solutions, get_dictionary()
+                _serialize_solutions, solutions, active_dict
             ),
             "error_message": error_message,
             "info_message": None,
             "letters_submitted": cleaned,
             "min_word_length_submitted": min_word_length,
             "excluded_words_submitted": [],
+            "dictionary_submitted": dict_mode,
+            "dictionary_label": DICTIONARY_LABELS.get(dict_mode, dict_mode.title()),
         },
     )
 
@@ -317,13 +384,14 @@ async def solve_letters_api(request_body: SolveRequestBody) -> list[GridSolution
         raise HTTPException(status_code=422, detail=validation_error)
 
     excluded = parse_excluded_words(request_body.excluded_words)
+    active_dict = get_dictionary(request_body.dictionary)
 
     try:
         return await asyncio.to_thread(
             solve_qless_grid,
             letters=cleaned,
             min_word_length=request_body.min_word_length,
-            dictionary=get_dictionary(),
+            dictionary=active_dict,
             max_solutions=request_body.max_solutions,
             timeout_seconds=3.0,
             excluded_words=excluded or None,
@@ -345,7 +413,7 @@ async def define_word_api(word: str) -> JSONResponse:
         raise HTTPException(
             status_code=422, detail="Word must contain only letters (A-Z)."
         )
-    dictionary = get_dictionary()
+    dictionary = get_dictionary("full")
     if dictionary is None:
         raise HTTPException(status_code=503, detail="Dictionary unavailable")
     definition = await asyncio.to_thread(dictionary.get_definition, cleaned)

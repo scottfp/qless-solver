@@ -8,13 +8,16 @@ from pathlib import Path
 import pytest
 from qless_solver.dictionary import (
     Dictionary,
+    DictionaryFlag,
     add_custom_words,
     can_form_word,
     get_definition,
     get_definitions,
     get_valid_words,
+    is_common_word,
     is_valid_word,
     load_dictionary,
+    normalize_dictionary_name,
 )
 
 
@@ -268,6 +271,75 @@ def test_dictionary_definition_requires_word_in_dictionary() -> None:
     wrapper = Dictionary()
     assert wrapper.get_definition("gorm") == "foolish person [n] / understand [v]"
     assert wrapper.get_definition("notarealwordxyz") is None
+
+
+def test_unified_store_sharing_and_common_dictionary_subset() -> None:
+    """Common and full views share one unified store without duplicating RAM."""
+    full_dict = Dictionary(mode="full")
+    common_dict = Dictionary(mode="common")
+    zero_copy_common = full_dict.with_mode("common")
+
+    assert full_dict._store is common_dict._store
+    assert full_dict._store is zero_copy_common._store
+    assert full_dict.required_mask == int(DictionaryFlag.FULL)
+    assert common_dict.required_mask == int(DictionaryFlag.COMMON)
+
+    assert 20_000 <= len(common_dict) <= 50_000
+    assert len(common_dict) < len(full_dict)
+
+    for everyday in ("comet", "prong", "next", "context", "apple"):
+        assert common_dict.is_valid_word(everyday)
+        assert full_dict.is_valid_word(everyday)
+        assert full_dict.is_common_word(everyday)
+        assert is_common_word(everyday)
+
+    for obscure in ("gorm", "aa", "dwalm", "mong"):
+        assert full_dict.is_valid_word(obscure)
+        assert not common_dict.is_valid_word(obscure)
+        assert not full_dict.is_common_word(obscure)
+        assert not is_common_word(obscure)
+
+    assert is_valid_word("gorm", mode="full") is True
+    assert is_valid_word("gorm", mode="common") is False
+    assert "gorm" in get_valid_words("rmtoepngtnxc", mode="full")
+    assert "gorm" not in get_valid_words("rmtoepngtnxc", mode="common")
+    assert "comet" in get_valid_words("rmtoepngtnxc", mode="common")
+
+
+def test_definitions_work_across_dictionary_modes() -> None:
+    """Disk-backed definition lookup works in both common and full modes."""
+    full_dict = Dictionary(mode="full")
+    common_dict = full_dict.with_mode("common")
+
+    assert common_dict.get_definition("comet") is not None
+    assert full_dict.get_definition("comet") == common_dict.get_definition("comet")
+    assert common_dict.get_definition("gorm") is None
+    assert full_dict.get_definition("gorm") == "foolish person [n] / understand [v]"
+
+
+def test_dictionary_mode_validation_and_in_memory_common_words() -> None:
+    """Invalid dictionary modes raise ValueError; in-memory common_words filters flags."""
+    with pytest.raises(ValueError, match="Unknown dictionary"):
+        normalize_dictionary_name("oxford")
+    with pytest.raises(ValueError, match="Unknown dictionary"):
+        Dictionary(mode="oxford")  # type: ignore[arg-type]
+
+    mem = Dictionary(
+        words=["cat", "gorm", "dog"],
+        common_words=["cat", "extra_not_in_full"],
+        mode="full",
+    )
+    assert mem.words == {"cat", "gorm", "dog"}
+    assert mem.is_common_word("cat") is True
+    assert mem.is_common_word("gorm") is False
+    assert mem.is_common_word("extra_not_in_full") is False
+    assert mem.has_uncommon_words() is True
+
+    mem_common = mem.with_mode("common")
+    assert mem_common._store is mem._store
+    assert mem_common.words == {"cat"}
+    assert mem_common.get_valid_words("catgorm") == {"cat"}
+    assert mem_common.has_uncommon_words() is False
 
 
 if __name__ == "__main__":
