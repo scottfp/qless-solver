@@ -236,9 +236,9 @@ def test_cli_dictionary_selection() -> None:
         text=True,
     )
     assert full_words.returncode == 0
-    assert "- comet" in full_words.stdout
-    assert "- gorm" in full_words.stdout
-    assert "- mong" in full_words.stdout
+    assert "- comet\n" in full_words.stdout
+    assert "- gorm (uncommon)\n" in full_words.stdout
+    assert "- mong (uncommon)\n" in full_words.stdout
 
     common_solve = subprocess.run(
         [
@@ -257,6 +257,26 @@ def test_cli_dictionary_selection() -> None:
     )
     assert common_solve.returncode == 0
     assert "Found " in common_solve.stdout
+    assert "* Not in Common English dictionary." not in common_solve.stdout
+
+    full_solve_with_fallback = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "qless_solver.cli",
+            "--letters",
+            "rmtoepngtnxc",
+            "--dictionary",
+            "full",
+            "--max-solutions",
+            "6",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert full_solve_with_fallback.returncode == 0
+    assert "MONG*" in full_solve_with_fallback.stdout
+    assert "* Not in Common English dictionary." in full_solve_with_fallback.stdout
 
     invalid = subprocess.run(
         [

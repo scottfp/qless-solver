@@ -144,7 +144,12 @@ def main() -> int:
             return 0
         print(f"Found {len(words)} valid word(s):")
         for word in words:
-            print(f"- {word}")
+            suffix = (
+                " (uncommon)"
+                if args.dictionary == "full" and not active_dict.is_common_word(word)
+                else ""
+            )
+            print(f"- {word}{suffix}")
         return 0
 
     boards = solve_board(
@@ -159,11 +164,24 @@ def main() -> int:
         print("No solutions found.")
         return 0
 
+    has_uncommon = False
     print(f"Found {len(boards)} solution(s):")
     for i, board in enumerate(boards, 1):
-        words = [bw.word.upper() for bw in board.extract_runs(min_length=2)]
-        print(f"\nSolution {i} ({len(words)} words: {', '.join(words)}):")
+        formatted_words: list[str] = []
+        for bw in board.extract_runs(min_length=2):
+            upper = bw.word.upper()
+            if args.dictionary == "full" and not active_dict.is_common_word(bw.word):
+                has_uncommon = True
+                formatted_words.append(f"{upper}*")
+            else:
+                formatted_words.append(upper)
+        print(
+            f"\nSolution {i} ({len(formatted_words)} words: {', '.join(formatted_words)}):"
+        )
         print(board.to_ascii(empty_char=".").upper())
+
+    if has_uncommon:
+        print("\n* Not in Common English dictionary.")
 
     return 0
 

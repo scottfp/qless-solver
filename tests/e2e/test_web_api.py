@@ -346,7 +346,9 @@ def test_serialize_solutions_word_entries_cover_board_tiles() -> None:
         entries = sol["word_entries"]
         assert isinstance(entries, list)
         assert [e["word"] for e in entries] == sol["words"]
+        assert sol["uncommon_count"] == sum(1 for e in entries if not e["is_common"])
         for entry in entries:
+            assert isinstance(entry["is_common"], bool)
             assert entry["definition"]
             spelled = "".join(rows[y][x] for x, y in entry["cells"])
             assert spelled.upper() == entry["word"]
@@ -486,3 +488,47 @@ def test_solve_htmx_dictionary_modes(client: TestClient) -> None:
     )
     assert bad_dict.status_code == 200
     assert "Unknown dictionary" in bad_dict.text
+
+
+def test_solve_htmx_notes_uncommon_words(client: TestClient) -> None:
+    full_many = client.post(
+        "/solve-htmx/",
+        data={
+            "letters": "rmtoepngtnxc",
+            "min_word_length": "3",
+            "max_solutions": "10",
+            "dictionary": "full",
+        },
+    )
+    assert full_many.status_code == 200
+    assert '"is_common": false' in full_many.text
+    assert '"uncommon_count": 1' in full_many.text
+
+    common_many = client.post(
+        "/solve-htmx/",
+        data={
+            "letters": "rmtoepngtnxc",
+            "min_word_length": "3",
+            "max_solutions": "10",
+            "dictionary": "common",
+        },
+    )
+    assert common_many.status_code == 200
+    assert '"is_common": false' not in common_many.text
+    assert '"uncommon_count": 0' in common_many.text
+
+    # Force an uncommon word into Solution 1 so initial Jinja HTML renders the badge.
+    uncommon_first = client.post(
+        "/solve-htmx/",
+        data={
+            "letters": "rmtoepngtnxc",
+            "min_word_length": "3",
+            "max_solutions": "3",
+            "dictionary": "full",
+            "excluded_words": "cogent,prong,context,prom",
+        },
+    )
+    assert uncommon_first.status_code == 200
+    assert 'class="word-chip uncommon"' in uncommon_first.text
+    assert '<span class="word-tag">uncommon</span>' in uncommon_first.text
+    assert "uncommon" in uncommon_first.text

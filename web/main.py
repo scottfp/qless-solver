@@ -125,9 +125,12 @@ def validate_letter_input(
 
 
 def _build_word_entries(
-    sol: GridSolution, board_words: list[str], definitions: dict[str, Optional[str]]
+    sol: GridSolution,
+    board_words: list[str],
+    definitions: dict[str, Optional[str]],
+    dictionary: Optional[Dictionary] = None,
 ) -> list[dict[str, object]]:
-    """Pair each solution word with its definition and normalized tile coordinates."""
+    """Pair each solution word with its definition, commonality, and tile coordinates."""
     runs: dict[str, list[list[list[int]]]] = {}
     board = sol.to_board().normalize()
     for run in sorted(
@@ -139,7 +142,14 @@ def _build_word_entries(
         matches = runs.get(word)
         cells = matches.pop(0) if matches else []
         entries.append(
-            {"word": word, "definition": definitions.get(word), "cells": cells}
+            {
+                "word": word,
+                "definition": definitions.get(word),
+                "cells": cells,
+                "is_common": (
+                    dictionary.is_common_word(word) if dictionary is not None else True
+                ),
+            }
         )
     return entries
 
@@ -157,12 +167,15 @@ def _serialize_solutions(
         board = sol.to_board()
         width, height = board.dimensions()
         words = [pw.word.upper() for pw in sol.grid.words]
+        word_entries = _build_word_entries(sol, words, definitions, dictionary)
+        uncommon_count = sum(1 for entry in word_entries if not entry["is_common"])
         serialized.append(
             {
                 "rows": board.to_rows(),
                 "words": words,
-                "word_entries": _build_word_entries(sol, words, definitions),
+                "word_entries": word_entries,
                 "word_count": len(words),
+                "uncommon_count": uncommon_count,
                 "dimensions": f"{width}x{height}",
             }
         )
