@@ -9,7 +9,11 @@ import sys
 from typing import Optional
 
 from qless_solver import __version__
-from qless_solver.dictionary import Dictionary
+from qless_solver.dictionary import (
+    AVAILABLE_DICTIONARIES,
+    DEFAULT_DICTIONARY_NAME,
+    Dictionary,
+)
 from qless_solver.generator import generate_random_roll
 from qless_solver.grid_solver import solve_board
 
@@ -60,6 +64,16 @@ def parse_args(args: Optional[list[str]] = None) -> argparse.Namespace:
         "-a",
         action="store_true",
         help="Show all valid dictionary words formable from the letters",
+    )
+    parser.add_argument(
+        "--dictionary",
+        "-d",
+        choices=list(AVAILABLE_DICTIONARIES),
+        default=DEFAULT_DICTIONARY_NAME,
+        help=(
+            "Dictionary mode: 'full' (all NWL words with common words ranked first, "
+            "default) or 'common' (everyday English words only)"
+        ),
     )
     parser.add_argument(
         "--exclude",
@@ -117,10 +131,11 @@ def main() -> int:
         return 1
 
     excluded = _parse_excluded_words(args.exclude)
+    active_dict = Dictionary(mode=args.dictionary)
 
     if args.all_words:
         words = sorted(
-            Dictionary().get_valid_words(letters, min_length=args.min_word_length)
+            active_dict.get_valid_words(letters, min_length=args.min_word_length)
             - set(excluded),
             key=lambda w: (-len(w), w),
         )
@@ -134,6 +149,7 @@ def main() -> int:
 
     boards = solve_board(
         letters=letters,
+        dictionary=active_dict,
         min_word_length=args.min_word_length,
         max_solutions=args.max_solutions,
         excluded_words=excluded or None,

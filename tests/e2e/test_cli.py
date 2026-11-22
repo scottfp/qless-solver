@@ -36,6 +36,7 @@ def test_cli_help() -> None:
     assert "usage:" in result.stdout.lower()
     assert "--letters" in result.stdout
     assert "--max-solutions" in result.stdout
+    assert "--dictionary" in result.stdout
 
 
 def test_cli_generate_roll() -> None:
@@ -195,6 +196,82 @@ def test_cli_exclude_words() -> None:
     assert "- comet" not in listed.stdout
     assert "- prong" not in listed.stdout
     assert "- next" in listed.stdout
+
+
+def test_cli_dictionary_selection() -> None:
+    """Test --dictionary common vs full and invalid dictionary rejection."""
+    pytest.importorskip("qless_solver")
+
+    common_words = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "qless_solver.cli",
+            "--letters",
+            "rmtoepngtnxc",
+            "--all-words",
+            "--dictionary",
+            "common",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert common_words.returncode == 0
+    assert "- comet" in common_words.stdout
+    assert "- gorm" not in common_words.stdout
+    assert "- mong" not in common_words.stdout
+
+    full_words = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "qless_solver.cli",
+            "--letters",
+            "rmtoepngtnxc",
+            "--all-words",
+            "--dictionary",
+            "full",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert full_words.returncode == 0
+    assert "- comet" in full_words.stdout
+    assert "- gorm" in full_words.stdout
+    assert "- mong" in full_words.stdout
+
+    common_solve = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "qless_solver.cli",
+            "--letters",
+            "rmtoepngtnxc",
+            "--dictionary",
+            "common",
+            "--max-solutions",
+            "2",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert common_solve.returncode == 0
+    assert "Found " in common_solve.stdout
+
+    invalid = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "qless_solver.cli",
+            "--letters",
+            "rmtoepngtnxc",
+            "--dictionary",
+            "nope",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert invalid.returncode != 0
 
 
 if __name__ == "__main__":

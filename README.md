@@ -10,8 +10,8 @@ Q-Less is a solitaire dice game where players attempt to create words using the 
 
 - Command-line interface for quick solving
 - Accepts string input via argparse
-- Validates words against a dictionary (`dictionary.txt` NWL word list)
-- Returns valid words from the given letters
+- Validates words against multiple dictionary modes (`full`: 281k NWL word list ranked common-words-first; `common`: 39k curated everyday English words) using a single unified bitmask index
+- Returns valid words and ranked crossword grids from the given letters
 - FastAPI + HTMX web interface with dark mode support
 
 ### Planned Features
@@ -55,8 +55,11 @@ uv pip install -e ".[dev,ocr]"
 ## Usage
 
 ```bash
-# Solve a 12-letter roll and print up to 5 ranked crossword grids
+# Solve a 12-letter roll and print up to 5 ranked crossword grids (full NWL, common words first)
 qless-solver --letters "rmtoepngtnxc"
+
+# Restrict strictly to everyday English words
+qless-solver --letters "rmtoepngtnxc" --dictionary common
 
 # Show up to 10 solutions with a minimum word length of 4
 qless-solver --letters "rmtoepngtnxc" --max-solutions 10 --min-word-length 4
@@ -150,7 +153,9 @@ pre-commit run --all-files
 ### Technology Stack
 
 - **Python**: Latest stable version (3.11+)
-- **Dictionary Source**: `dictionary.txt` (NWL word list)
+- **Dictionary Sources**:
+  - `dictionary.txt`: NWL word list (280,887 words with definitions)
+  - `common_words.txt`: Curated everyday English subset (39,038 words) derived from [SCOWL 2020.12.07](http://wordlist.aspell.net/) (`english-words.{10,20,35}` and `american-words.{10,20,35}` intersected with `dictionary.txt`; see `scripts/build_common_dictionary.py`)
 - **Testing**: pytest
 - **Web Framework**: FastAPI + HTMX
 - **Code Quality**: Black, isort, mypy, ruff, pre-commit
@@ -209,6 +214,14 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+### Third-Party Word List Notice (SCOWL)
+
+`common_words.txt` incorporates word lists from SCOWL (`2020.12.07`):
+
+> Copyright 2000-2018 by Kevin Atkinson
+>
+> Permission to use, copy, modify, distribute and sell these word lists, the associated scripts, the output created from the scripts, and its documentation for any purpose is hereby granted without fee, provided that the above copyright notice appears in all copies and that both that copyright notice and this permission notice appear in supporting documentation. Kevin Atkinson makes no representations about the suitability of this array for any purpose. It is provided "as is" without express or implied warranty.
 
 ## Author
 

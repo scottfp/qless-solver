@@ -7,12 +7,13 @@ COPY --from=ghcr.io/astral-sh/uv:0.13.9 /uv /usr/local/bin/uv
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PORT=8080 \
-    QLESS_DICTIONARY_PATH=/app/dictionary.txt
+    QLESS_DICTIONARY_PATH=/app/dictionary.txt \
+    QLESS_COMMON_DICTIONARY_PATH=/app/common_words.txt
 
 WORKDIR /app
 
-# Copy dictionary separately so code-only rebuilds reuse this cached ~10 MB layer
-COPY dictionary.txt ./
+# Copy dictionaries separately so code-only rebuilds reuse this cached ~10 MB layer
+COPY dictionary.txt common_words.txt ./
 
 # Install package and runtime dependencies
 COPY pyproject.toml README.md LICENSE ./

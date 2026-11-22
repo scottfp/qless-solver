@@ -15,7 +15,7 @@
         <p class="results-summary">
             Found {{ solutions|length }} solution(s) for letters:
             <strong>{{ letters_submitted }}</strong>
-            (min length: {{ min_word_length_submitted }})
+            (min length: {{ min_word_length_submitted }} &middot; {{ dictionary_label or 'Full Scrabble' }})
         </p>
 
         <div class="carousel-stage">
@@ -293,7 +293,10 @@
     <div class="info">
         <p>
             No solutions found for letters: <strong>{{ letters_submitted }}</strong>
-            (min length: {{ min_word_length_submitted }}{% if excluded_words_submitted %}, excluding: <strong>{{ excluded_words_submitted|join(', ') }}</strong>{% endif %}).
+            (min length: {{ min_word_length_submitted }} &middot; {{ dictionary_label or 'Full Scrabble' }}{% if excluded_words_submitted %}, excluding: <strong>{{ excluded_words_submitted|join(', ') }}</strong>{% endif %}).
         </p>
+        {% if dictionary_submitted == 'common' %}
+            <p>Tip: Try switching the dictionary to <strong>Full (Common first)</strong> for broader Scrabble word coverage.</p>
+        {% endif %}
     </div>
 {% endif %}
