@@ -10,40 +10,6 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
-DEFAULT_GRIDS = [
-    [
-        ".f...",
-        "kohl.",
-        ".b.i.",
-        "...p.",
-        "..him",
-        "...d.",
-    ],
-    [
-        ".....w",
-        ".....r",
-        ".l...a",
-        "pantry",
-        ".m....",
-        ".b....",
-    ],
-    [
-        "....s.",
-        "....h.",
-        "....a.",
-        ".l..k.",
-        "mildew",
-        ".d....",
-    ],
-    [
-        ".p...",
-        ".r.n.",
-        "comet",
-        ".n.x.",
-        ".g.t.",
-    ],
-]
-
 # Add the cli directory to the Python path so qless_solver package is importable
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 cli_path = os.path.join(project_root, "cli")
@@ -135,9 +101,7 @@ def _serialize_solutions(solutions: list[GridSolution]) -> list[dict[str, object
 @app.get("/", response_class=HTMLResponse)
 async def read_index(request: Request) -> HTMLResponse:
     """Serves the main HTML page."""
-    return templates.TemplateResponse(
-        request, "index.html", {"default_grids": DEFAULT_GRIDS}
-    )
+    return templates.TemplateResponse(request, "index.html")
 
 
 @app.get("/roll/", tags=["API"])

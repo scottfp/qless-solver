@@ -453,30 +453,6 @@
             <p class="results-placeholder">Enter 12 letters or roll the dice, then click <strong>Solve</strong>.</p>
         </div>
 
-        {% if default_grids %}
-        <section id="default-grid-wrapper" class="card">
-            <div class="card-header">
-                <h3>Example Solved Boards</h3>
-                <span id="default-grid-counter" class="pill-muted">Example 1 of {{ default_grids|length }}</span>
-            </div>
-            <div class="carousel-stage">
-                <button type="button" id="prev-solution" class="nav-arrow secondary" aria-label="Previous solution">&lt;</button>
-                <div id="solution-grid" class="solution-grid">
-                    {% for row in default_grids[0] %}
-                    <div class="grid-row">
-                        {% for ch in row %}
-                        <div class="grid-cell {% if ch == '.' %}empty{% endif %}">
-                            {{ '' if ch == '.' else ch }}
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% endfor %}
-                </div>
-                <button type="button" id="next-solution" class="nav-arrow secondary" aria-label="Next solution">&gt;</button>
-            </div>
-        </section>
-        {% endif %}
-
         <section class="card">
             <div class="card-header">
                 <h3>Photo Capture</h3>
@@ -552,42 +528,6 @@
                 rollButton.disabled = false;
             }
         });
-
-        {% if default_grids %}
-        const defaultGrids = {{ default_grids|tojson }};
-        let currentGridIndex = 0;
-        const defaultCounter = document.getElementById('default-grid-counter');
-
-        function renderDefaultGrid(idx) {
-            const grid = defaultGrids[idx];
-            const container = document.getElementById('solution-grid');
-            container.innerHTML = '';
-            grid.forEach(row => {
-                const rowDiv = document.createElement('div');
-                rowDiv.className = 'grid-row';
-                for (const ch of row) {
-                    const cell = document.createElement('div');
-                    cell.className = 'grid-cell' + (ch === '.' ? ' empty' : '');
-                    cell.textContent = ch === '.' ? '' : ch;
-                    rowDiv.appendChild(cell);
-                }
-                container.appendChild(rowDiv);
-            });
-            if (defaultCounter) {
-                defaultCounter.textContent = `Example ${idx + 1} of ${defaultGrids.length}`;
-            }
-        }
-
-        document.getElementById('prev-solution').addEventListener('click', () => {
-            currentGridIndex = (currentGridIndex - 1 + defaultGrids.length) % defaultGrids.length;
-            renderDefaultGrid(currentGridIndex);
-        });
-
-        document.getElementById('next-solution').addEventListener('click', () => {
-            currentGridIndex = (currentGridIndex + 1) % defaultGrids.length;
-            renderDefaultGrid(currentGridIndex);
-        });
-        {% endif %}
     </script>
 </body>
 </html>
