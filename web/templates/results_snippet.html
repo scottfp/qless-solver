@@ -48,7 +48,7 @@
         </div>
 
         <div id="result-definition" class="definition-box" aria-live="polite">
-            <span class="definition-hint">Hover or tap a word or tile to see its definition.</span>
+            <span class="definition-hint">Click or tap any word or tile to see its definition.</span>
         </div>
     </section>
 
@@ -57,7 +57,10 @@
             const solutions = {{ serialized_solutions|tojson }};
             if (!solutions || solutions.length === 0) return;
 
-            const HINT = 'Hover or tap a word or tile to see its definition.';
+            const canHover = window.matchMedia('(hover: hover)').matches;
+            const HINT = canHover
+                ? 'Click any word or tile to see its definition.'
+                : 'Tap any word or tile to see its definition.';
             let idx = 0;
             let pinnedWordIdx = null;
             const gridEl = document.getElementById('result-grid');
@@ -157,28 +160,59 @@
 
             wordsEl.querySelectorAll('.word-badge').forEach(bindBadge);
 
-            // Clicking/tapping a tile pins the word(s) it belongs to. Tiles at an
-            // intersection cycle: first word -> second word -> unpinned.
-            gridEl.addEventListener('click', (event) => {
-                const cell = event.target.closest('.grid-cell');
-                if (!cell || cell.classList.contains('empty')) return;
-                const x = Number(cell.dataset.x);
-                const y = Number(cell.dataset.y);
+            function cellsOf(wordIdx) {
+                const entry = wordIdx === null ? null : entriesFor(solutions[idx])[wordIdx];
+                return entry ? entry.cells || [] : [];
+            }
+
+            // Word a click on (x, y) would pin next. Tiles at an intersection
+            // cycle: first word -> second word -> unpinned (null).
+            function nextPinAt(x, y) {
                 const candidates = [];
                 entriesFor(solutions[idx]).forEach((entry, wordIdx) => {
                     if ((entry.cells || []).some(([cx, cy]) => cx === x && cy === y)) {
                         candidates.push(wordIdx);
                     }
                 });
-                if (candidates.length === 0) return;
+                if (candidates.length === 0) return undefined;
                 const pos = candidates.indexOf(pinnedWordIdx);
-                if (pos === -1) {
-                    pinnedWordIdx = candidates[0];
-                } else {
-                    pinnedWordIdx = pos + 1 < candidates.length ? candidates[pos + 1] : null;
-                }
+                if (pos === -1) return candidates[0];
+                return pos + 1 < candidates.length ? candidates[pos + 1] : null;
+            }
+
+            function clearPreview() {
+                gridEl.querySelectorAll('.grid-cell.preview')
+                    .forEach((c) => c.classList.remove('preview'));
+            }
+
+            function previewAt(cell) {
+                clearPreview();
+                if (!cell || cell.classList.contains('empty')) return;
+                const next = nextPinAt(Number(cell.dataset.x), Number(cell.dataset.y));
+                cellsOf(next ?? null).forEach(([x, y]) => {
+                    const c = gridEl.querySelector(`.grid-cell[data-x="${x}"][data-y="${y}"]`);
+                    if (c) c.classList.add('preview');
+                });
+            }
+
+            gridEl.addEventListener('click', (event) => {
+                const cell = event.target.closest('.grid-cell');
+                if (!cell || cell.classList.contains('empty')) return;
+                const next = nextPinAt(Number(cell.dataset.x), Number(cell.dataset.y));
+                if (next === undefined) return;
+                pinnedWordIdx = next;
                 showWord(pinnedWordIdx);
+                if (canHover) previewAt(cell);
             });
+
+            if (canHover) {
+                gridEl.addEventListener('mouseover', (event) => {
+                    previewAt(event.target.closest('.grid-cell'));
+                });
+                gridEl.addEventListener('mouseleave', clearPreview);
+            }
+
+            showWord(null);
 
             if (prevBtn && nextBtn) {
                 prevBtn.addEventListener('click', () => render(idx - 1));
