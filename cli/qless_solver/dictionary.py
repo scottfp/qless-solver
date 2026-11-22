@@ -5,81 +5,90 @@ Provides functions for validating words and finding valid words.
 
 from collections import Counter
 from pathlib import Path
-from typing import Optional, Set
+from typing import Dict, Iterable, Optional, Set
 
-# Global cache for the dictionary
-_DICTIONARY: Optional[Set[str]] = None
+DEFAULT_DICTIONARY_PATH = (
+    Path(__file__).parent.parent.parent / "dictionary.txt"
+).resolve()
+
+# Global cache for dictionaries keyed by resolved path
+_DICTIONARY_CACHE: Dict[Path, Set[str]] = {}
+
+_FALLBACK_WORDS: Set[str] = {
+    "apple",
+    "banana",
+    "cherry",
+    "date",
+    "fig",
+    "grape",
+    "are",
+    "ran",
+    "ear",
+    "near",
+    "gear",
+    "eat",
+    "tea",
+    "ate",
+    "seat",
+    "rate",
+    "tear",
+    "gate",
+    "art",
+    "rat",
+    "tar",
+    "tare",
+    "stare",
+    "depart",
+}
 
 
 def load_dictionary(
     dictionary_path: Optional[Path] = None,
+    force_reload: bool = False,
 ) -> Set[str]:
     """
     Load a dictionary of valid words.
 
     Args:
-        dictionary_path: Path to the dictionary file. If None, uses a default dictionary.
+        dictionary_path: Path to the dictionary file. If None, uses the default dictionary.
+        force_reload: If True, bypass the cache and reload from disk.
 
     Returns:
-        A set of valid words.
+        A set of valid lowercase words.
     """
-    global _DICTIONARY
+    is_default = dictionary_path is None
+    resolved_path = (
+        DEFAULT_DICTIONARY_PATH
+        if dictionary_path is None
+        else Path(dictionary_path).resolve()
+    )
 
-    # Use cached dictionary if available
-    if _DICTIONARY is not None:
-        return _DICTIONARY
+    if not force_reload and resolved_path in _DICTIONARY_CACHE:
+        return _DICTIONARY_CACHE[resolved_path]
 
-    # Use the provided path or default to dictionary.txt in the root directory
-    if dictionary_path is None:
-        dictionary_path = Path(__file__).parent.parent.parent / "dictionary.txt"
-
-    _DICTIONARY = set()
+    words: Set[str] = set()
 
     try:
-        with open(dictionary_path, "r", encoding="utf-8") as f:
+        with open(resolved_path, "r", encoding="utf-8") as f:
             for line in f:
                 # Each line has format "WORD definition..." or just "WORD"
                 # Extract just the word part (before the first space)
                 if line.strip():
                     word = line.split(" ", 1)[0].lower()
-                    # Remove any non-alphabetic characters
-                    word = "".join(c for c in word if c.isalpha())
-                    if word:  # Only add non-empty words
-                        _DICTIONARY.add(word)
+                    # Keep only ASCII alphabetic characters
+                    word = "".join(c for c in word if c.isascii() and c.isalpha())
+                    if word:
+                        words.add(word)
     except FileNotFoundError:
+        if not is_default:
+            raise FileNotFoundError(f"Dictionary file not found: {resolved_path}")
         print(
-            f"Dictionary file not found at {dictionary_path}. Using built-in fallback dictionary."
+            f"Dictionary file not found at {resolved_path}. Using built-in fallback dictionary."
         )
-        # Fallback to a small built-in dictionary for testing purposes
-        _DICTIONARY = {
-            "apple",
-            "banana",
-            "cherry",
-            "date",
-            "fig",
-            "grape",
-            "are",
-            "ran",
-            "ear",
-            "near",
-            "gear",
-            "ran",
-            "eat",
-            "tea",
-            "ate",
-            "seat",
-            "rate",
-            "tear",
-            "gate",
-            "art",
-            "rat",
-            "tar",
-            "tare",
-            "stare",
-            "depart",
-        }
+        words = set(_FALLBACK_WORDS)
 
-    return _DICTIONARY
+    _DICTIONARY_CACHE[resolved_path] = words
+    return words
 
 
 def is_valid_word(word: str, min_length: int = 3) -> bool:
@@ -100,13 +109,13 @@ def is_valid_word(word: str, min_length: int = 3) -> bool:
     return word.lower() in dictionary
 
 
-def can_form_word(word: str, available_letters: Counter) -> bool:
+def can_form_word(word: str, available_letters: Counter[str]) -> bool:
     """
     Check if a word can be formed from the available letters.
 
     Args:
         word: The word to check.
-        available_letters: Counter of available letters.
+        available_letters: Counter of available lowercase letters.
 
     Returns:
         True if the word can be formed, False otherwise.
@@ -138,11 +147,13 @@ def get_valid_words(
     """
     dictionary = load_dictionary(dictionary_path)
     available_letters = Counter(letters.lower())
+    max_length = len(letters)
 
-    # Filter the dictionary to find words that can be formed
-    valid_words = set()
+    valid_words: Set[str] = set()
     for word in dictionary:
-        if len(word) >= min_length and can_form_word(word, available_letters):
+        if min_length <= len(word) <= max_length and can_form_word(
+            word, available_letters
+        ):
             valid_words.add(word)
 
     return valid_words
@@ -150,7 +161,7 @@ def get_valid_words(
 
 def add_custom_words(words: Set[str]) -> None:
     """
-    Add custom words to the dictionary.
+    Add custom words to the cached default dictionary.
 
     Args:
         words: Set of words to add.
@@ -163,13 +174,36 @@ def add_custom_words(words: Set[str]) -> None:
 class Dictionary:
     """Dictionary wrapper that loads and validates words."""
 
-    def __init__(self, path: Optional[Path] = None) -> None:
-        self.words: Set[str] = load_dictionary(path)
+    def __init__(
+        self,
+        path: Optional[Path] = None,
+        words: Optional[Iterable[str]] = None,
+    ) -> None:
+        if words is not None:
+            self.words: Set[str] = {
+                stripped.lower()
+                for w in words
+                for stripped in (w.strip(),)
+                if stripped and stripped.isascii() and stripped.isalpha()
+            }
+        else:
+            self.words = set(load_dictionary(path))
 
-    def is_valid_word(self, word: str) -> bool:
-        """Return True if ``word`` exists in this dictionary."""
-        return word.lower() in self.words
+    def is_valid_word(self, word: str, min_length: int = 1) -> bool:
+        """Return True if ``word`` meets ``min_length`` and exists in this dictionary."""
+        return len(word) >= min_length and word.lower() in self.words
 
-    def load_dictionary(self, path: Path) -> None:
+    def load_dictionary(self, path: Path, force_reload: bool = False) -> None:
         """Reload the dictionary from ``path``."""
-        self.words = load_dictionary(path)
+        self.words = set(load_dictionary(path, force_reload=force_reload))
+
+    def get_valid_words(self, letters: str, min_length: int = 3) -> Set[str]:
+        """Return all dictionary words formable from ``letters`` with length >= ``min_length``."""
+        available_letters = Counter(letters.lower())
+        max_length = len(letters)
+        return {
+            word
+            for word in self.words
+            if min_length <= len(word) <= max_length
+            and can_form_word(word, available_letters)
+        }

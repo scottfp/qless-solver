@@ -1,5 +1,6 @@
 import os
 import sys
+from html.parser import HTMLParser
 
 import pytest
 from fastapi.testclient import TestClient
@@ -20,7 +21,7 @@ GRID_CASES = {
         "kohl.",
         ".b.i.",
         "...p.",
-        ".him.",
+        "..him",
         "...d.",
     ],
     "test_grid_2.jpg": [
@@ -49,6 +50,54 @@ GRID_CASES = {
 }
 
 
+class _SolutionGridParser(HTMLParser):
+    """Extract row strings from `<div id="solution-grid">`."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.rows: list[str] = []
+        self._grid_depth = 0
+        self._in_row = False
+        self._in_cell = False
+        self._current_row: list[str] = []
+        self._current_cell: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag != "div":
+            return
+        attr_map = dict(attrs)
+        classes = (attr_map.get("class") or "").split()
+
+        if self._grid_depth == 0:
+            if attr_map.get("id") == "solution-grid":
+                self._grid_depth = 1
+            return
+
+        self._grid_depth += 1
+        if "grid-row" in classes:
+            self._in_row = True
+            self._current_row = []
+        elif self._in_row and "grid-cell" in classes:
+            self._in_cell = True
+            self._current_cell = []
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag != "div" or self._grid_depth == 0:
+            return
+        if self._in_cell:
+            text = "".join(self._current_cell).strip()
+            self._current_row.append(text if text else ".")
+            self._in_cell = False
+        elif self._in_row and self._grid_depth == 2:
+            self.rows.append("".join(self._current_row))
+            self._in_row = False
+        self._grid_depth -= 1
+
+    def handle_data(self, data: str) -> None:
+        if self._in_cell:
+            self._current_cell.append(data)
+
+
 @pytest.fixture(scope="module")
 def client():
     if app is None:
@@ -57,17 +106,16 @@ def client():
         yield c
 
 
-@pytest.mark.xfail(reason="Default grid not shown on page load yet")
 def test_index_displays_default_grid(client: TestClient):
     response = client.get("/")
     assert response.status_code == 200
     html = response.text
     assert "solution-grid" in html
-    for row in GRID_CASES["test_grid_1.jpg"]:
-        assert row in html
+    parser = _SolutionGridParser()
+    parser.feed(html)
+    assert parser.rows == GRID_CASES["test_grid_1.jpg"]
 
 
-@pytest.mark.xfail(reason="Navigation arrows not implemented yet")
 def test_index_has_navigation_arrows(client: TestClient):
     response = client.get("/")
     html = response.text

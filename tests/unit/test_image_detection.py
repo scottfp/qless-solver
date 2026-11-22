@@ -1,11 +1,7 @@
 from pathlib import Path
 
-import cv2
-import numpy as np
 import pytest
 from qless_solver.image_detection import detect_letters
-
-from cli.qless_solver.preprocess import apply_threshold
 
 ROLL_CASES = {
     "test_roll_1.jpg": "kobfldhimiph",
@@ -17,6 +13,7 @@ ROLL_CASES = {
 
 def test_can_load_golden_images() -> None:
     """Verify that a golden image can be loaded with OpenCV."""
+    cv2 = pytest.importorskip("cv2")
     image_path = Path("tests/images") / "test_grid_1.jpg"
     image = cv2.imread(str(image_path))
     assert image is not None
@@ -34,6 +31,10 @@ def test_detect_letters_from_roll_images(filename: str, expected: str) -> None:
 
 def test_preprocessing_is_deterministic() -> None:
     """apply_threshold should produce consistent results."""
+    cv2 = pytest.importorskip("cv2")
+    np = pytest.importorskip("numpy")
+    from qless_solver.preprocess import apply_threshold
+
     input_image_path = Path("tests/images") / "test_roll_4.jpg"
     golden_image_path = Path("tests/golden_images") / "golden_roll_4.png"
 

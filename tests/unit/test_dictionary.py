@@ -3,9 +3,11 @@ Unit tests for the qless_solver.dictionary module.
 """
 
 from collections import Counter
+from pathlib import Path
 
 import pytest
 from qless_solver.dictionary import (
+    Dictionary,
     add_custom_words,
     can_form_word,
     get_valid_words,
@@ -78,6 +80,62 @@ def test_add_custom_words() -> None:
     dictionary = load_dictionary()
     assert "customword" in dictionary
     assert "anotherword" in dictionary
+
+
+def test_load_custom_dictionary_not_polluted_by_default_cache(tmp_path: Path) -> None:
+    """Loading a custom dictionary path must not return the cached default set."""
+    default_dict = load_dictionary()
+    assert "eat" in default_dict
+
+    custom_file = tmp_path / "custom_words.txt"
+    custom_file.write_text("ALPHA first\nBETA second\n", encoding="utf-8")
+
+    custom_dict = load_dictionary(custom_file)
+    assert custom_dict == {"alpha", "beta"}
+    assert "eat" not in custom_dict
+    # Default cache remains intact
+    assert "eat" in load_dictionary()
+
+
+def test_load_dictionary_force_reload(tmp_path: Path) -> None:
+    """force_reload=True refreshes a previously cached custom dictionary."""
+    custom_file = tmp_path / "reload_words.txt"
+    custom_file.write_text("ONE\nTWO\n", encoding="utf-8")
+
+    first = load_dictionary(custom_file)
+    assert first == {"one", "two"}
+
+    custom_file.write_text("ONE\nTHREE\n", encoding="utf-8")
+    assert load_dictionary(custom_file) == {"one", "two"}
+
+    reloaded = load_dictionary(custom_file, force_reload=True)
+    assert reloaded == {"one", "three"}
+
+    wrapper = Dictionary(path=custom_file)
+    assert wrapper.is_valid_word("three")
+    custom_file.write_text("FOUR\n", encoding="utf-8")
+    wrapper.load_dictionary(custom_file, force_reload=True)
+    assert wrapper.words == {"four"}
+
+
+def test_load_missing_custom_dictionary_raises(tmp_path: Path) -> None:
+    """Providing an explicit missing path raises FileNotFoundError."""
+    missing = tmp_path / "does_not_exist.txt"
+    with pytest.raises(FileNotFoundError):
+        load_dictionary(missing)
+
+
+def test_dictionary_in_memory_and_valid_words() -> None:
+    """Dictionary(words=...) normalizes input and filters candidate words cleanly."""
+    d = Dictionary(words=[" Cat ", "AT", "Cats", "cater", "123", "café", ""])
+    assert d.words == {"cat", "at", "cats", "cater"}
+    assert d.is_valid_word("CAT") is True
+    assert d.is_valid_word("at", min_length=2) is True
+    assert d.is_valid_word("at", min_length=3) is False
+
+    # Respects multiplicities ("cats" only once, "cater" missing 'e'/'r', "at" < 3)
+    assert d.get_valid_words("cats", min_length=3) == {"cat", "cats"}
+    assert d.get_valid_words("cat", min_length=2) == {"at", "cat"}
 
 
 if __name__ == "__main__":

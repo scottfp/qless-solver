@@ -2,6 +2,7 @@
 """
 Command-line interface for qless-solver.
 """
+
 import argparse
 import sys
 from typing import List, Optional

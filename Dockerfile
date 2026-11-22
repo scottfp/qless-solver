@@ -3,14 +3,10 @@ FROM python:3.12-slim
 WORKDIR /app
 COPY . .
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        tesseract-ocr \
-        libgl1 \
-        libglib2.0-0 \
-    && rm -rf /var/lib/apt/lists/* \
-    && pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir . \
-    && pip install --no-cache-dir python-multipart
+# Note: OCR system packages (tesseract-ocr, libgl1, libglib2.0-0) and .[ocr]
+# can be restored once computer vision letter detection is implemented.
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir .
 
 EXPOSE 8000
 CMD ["python", "-m", "uvicorn", "web.main:app", "--host", "0.0.0.0", "--port", "8000"]

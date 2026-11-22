@@ -13,7 +13,7 @@ DEFAULT_GRIDS = [
         "kohl.",
         ".b.i.",
         "...p.",
-        ".him.",
+        "..him",
         "...d.",
     ],
     [
@@ -77,7 +77,7 @@ class SolveRequestBody(BaseModel):
 async def read_index(request: Request):
     """Serves the main HTML page."""
     return templates.TemplateResponse(
-        "index.html", {"request": request, "default_grids": DEFAULT_GRIDS}
+        request, "index.html", {"default_grids": DEFAULT_GRIDS}
     )
 
 
@@ -110,9 +110,9 @@ async def solve_letters_htmx(
 
     # Render an HTML snippet template with the solutions or error
     return templates.TemplateResponse(
+        request,
         "results_snippet.html",
         {
-            "request": request,
             "solutions": solutions,
             "error_message": error_message,
             "letters_submitted": letters,
@@ -152,9 +152,9 @@ async def solve_letters_image(
         print(error_message)
     # Render an HTML snippet template with the solutions or error
     return templates.TemplateResponse(
+        request,
         "results_snippet.html",
         {
-            "request": request,
             "solutions": solutions,
             "error_message": error_message,
             "letters_submitted": detected,
