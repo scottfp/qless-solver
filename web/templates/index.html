@@ -8,203 +8,475 @@
     <script src="https://unpkg.com/htmx.org@1.9.10" integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC" crossorigin="anonymous"></script>
     <style>
         :root {
-            --bg-color: #f4f4f4;
-            --text-color: #333;
+            --bg-color: #f4f5f7;
+            --text-color: #1f2430;
+            --muted-text: #5b6474;
             --container-bg: #ffffff;
-            --border-color: #ddd;
-            --button-bg: #007bff;
-            --button-hover: #0056b3;
-            --results-bg: #f9f9f9;
-            --grid-bg: #e0e0e0;
-            --grid-cell-bg: #fff;
-            --empty-cell-bg: #f0f0f0;
+            --surface-bg: #f8f9fb;
+            --border-color: #d8dde6;
+            --button-bg: #2563eb;
+            --button-hover: #1d4ed8;
+            --secondary-bg: #e9edf4;
+            --secondary-hover: #dce2ec;
+            --secondary-text: #1f2430;
+            --grid-bg: #e7ebf2;
+            --tile-bg: #fffdf7;
+            --tile-border: #d0c8b6;
+            --tile-text: #1e232c;
+            --tile-shadow: 0 2px 0 rgba(0, 0, 0, 0.14);
+            --empty-cell-bg: rgba(0, 0, 0, 0.04);
+            --badge-bg: #e8effd;
+            --badge-border: #bfd4fb;
+            --badge-text: #1e429f;
+            --error-bg: #fef2f2;
+            --error-border: #fca5a5;
+            --error-text: #991b1b;
+            --info-bg: #eff6ff;
+            --info-border: #93c5fd;
+            --info-text: #1e40af;
         }
 
         .dark-mode {
-            --bg-color: #222;
-            --text-color: #eee;
-            --container-bg: #333;
-            --border-color: #555;
-            --button-bg: #4a8bff;
-            --button-hover: #2a6ad2;
-            --results-bg: #2b2b2b;
-            --grid-bg: #444;
-            --grid-cell-bg: #555;
-            --empty-cell-bg: #3b3b3b;
+            --bg-color: #161920;
+            --text-color: #e8ecf3;
+            --muted-text: #9aa4b6;
+            --container-bg: #202530;
+            --surface-bg: #272d3b;
+            --border-color: #394256;
+            --button-bg: #3b82f6;
+            --button-hover: #2563eb;
+            --secondary-bg: #303748;
+            --secondary-hover: #3c4559;
+            --secondary-text: #e8ecf3;
+            --grid-bg: #181c24;
+            --tile-bg: #f2ebd9;
+            --tile-border: #c9bfa9;
+            --tile-text: #1b1f27;
+            --tile-shadow: 0 2px 0 rgba(0, 0, 0, 0.45);
+            --empty-cell-bg: rgba(255, 255, 255, 0.04);
+            --badge-bg: #25344f;
+            --badge-border: #3c5480;
+            --badge-text: #bfdbfe;
+            --error-bg: #3b1d22;
+            --error-border: #993b47;
+            --error-text: #fecaca;
+            --info-bg: #1e2e46;
+            --info-border: #3b6399;
+            --info-text: #bfdbfe;
+        }
+
+        * {
+            box-sizing: border-box;
         }
 
         body {
-            font-family: sans-serif;
-            margin: 20px;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 24px 16px 48px;
             background-color: var(--bg-color);
             color: var(--text-color);
+            line-height: 1.5;
         }
 
         .container {
-            max-width: 800px;
-            margin: auto;
+            max-width: 780px;
+            margin: 0 auto;
             background: var(--container-bg);
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            padding: 24px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
         }
 
-        h1 {
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .page-header h1 {
+            margin: 0;
+            font-size: 1.7rem;
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            margin: 2px 0 0;
+            font-size: 0.9rem;
+            color: var(--muted-text);
+        }
+
+        #dark-mode-toggle {
+            background: var(--surface-bg);
             color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            width: 42px;
+            height: 42px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            padding: 0;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        #dark-mode-toggle:hover {
+            background: var(--secondary-hover);
+        }
+
+        .card {
+            background: var(--surface-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 18px;
+            margin-bottom: 18px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .card h2,
+        .card h3 {
+            margin: 0;
+            font-size: 1.05rem;
+        }
+
+        .pill-muted {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: var(--secondary-bg);
+            color: var(--muted-text);
+            border: 1px solid var(--border-color);
         }
 
         label {
             display: block;
-            margin-bottom: 5px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
         }
 
         input[type="text"],
-        input[type="number"] {
-            width: calc(100% - 22px);
-            padding: 10px;
-            margin-bottom: 15px;
+        input[type="number"],
+        input[type="file"] {
+            padding: 10px 12px;
             border: 1px solid var(--border-color);
-            border-radius: 4px;
+            border-radius: 8px;
             background-color: var(--container-bg);
             color: var(--text-color);
+            font-size: 0.95rem;
+        }
+
+        #letters {
+            flex: 1 1 240px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 1.15rem;
+            font-weight: 700;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+        }
+
+        .letter-count {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--muted-text);
+            min-width: 48px;
+            text-align: center;
+        }
+
+        .controls-row {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .field-compact {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .field-compact input[type="number"] {
+            width: 96px;
         }
 
         button {
             background-color: var(--button-bg);
-            color: white;
-            padding: 10px 15px;
+            color: #ffffff;
+            padding: 10px 16px;
             border: none;
-            border-radius: 4px;
+            border-radius: 8px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            transition: background-color 0.15s ease;
         }
 
-        button:hover {
+        button:hover:not(:disabled) {
             background-color: var(--button-hover);
         }
 
-        #results {
-            margin-top: 20px;
-            padding: 10px;
+        button:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        button.secondary {
+            background-color: var(--secondary-bg);
+            color: var(--secondary-text);
             border: 1px solid var(--border-color);
-            border-radius: 4px;
-            background-color: var(--results-bg);
+        }
+
+        button.secondary:hover:not(:disabled) {
+            background-color: var(--secondary-hover);
+        }
+
+        .htmx-indicator {
+            display: none;
+            align-items: center;
+            font-size: 0.9rem;
+            color: var(--muted-text);
+            font-weight: 600;
+        }
+
+        .htmx-request .htmx-indicator,
+        .htmx-request.htmx-indicator {
+            display: inline-flex;
+        }
+
+        #results-container {
+            margin-bottom: 18px;
+        }
+
+        .results-placeholder {
+            text-align: center;
+            padding: 16px;
+            border: 1px dashed var(--border-color);
+            border-radius: 10px;
+            color: var(--muted-text);
+            margin: 0;
+        }
+
+        .carousel-stage {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            margin: 12px 0;
+        }
+
+        .nav-arrow {
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            flex-shrink: 0;
         }
 
         .solution-grid {
-            display: grid;
-            gap: 2px;
-            margin-bottom: 10px;
+            display: inline-flex;
+            flex-direction: column;
+            gap: 4px;
             border: 1px solid var(--border-color);
-            padding: 5px;
+            border-radius: 8px;
+            padding: 8px;
             background-color: var(--grid-bg);
-            max-width: fit-content;
         }
 
         .grid-row {
             display: flex;
+            gap: 4px;
         }
 
         .grid-cell {
-            width: 30px;
-            height: 30px;
-            background-color: var(--grid-cell-bg);
-            border: 1px solid var(--border-color);
+            width: 36px;
+            height: 36px;
+            background-color: var(--tile-bg);
+            color: var(--tile-text);
+            border: 1px solid var(--tile-border);
+            border-radius: 6px;
+            box-shadow: var(--tile-shadow);
             display: flex;
             justify-content: center;
             align-items: center;
-            font-weight: bold;
+            font-weight: 800;
+            font-size: 1.05rem;
             text-transform: uppercase;
+            user-select: none;
         }
 
         .grid-cell.empty {
             background-color: var(--empty-cell-bg);
+            border-color: transparent;
+            box-shadow: none;
         }
 
-        .error {
-            color: red;
+        .results-summary {
+            margin: 0 0 8px;
+            text-align: center;
+            font-size: 0.95rem;
+        }
+
+        .results-summary strong {
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .carousel-meta {
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--muted-text);
+            margin-top: 6px;
+        }
+
+        .word-list {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 6px;
             margin-top: 10px;
         }
 
-        .theme-toggle {
-            text-align: right;
-            margin-bottom: 10px;
+        .word-badge {
+            background-color: var(--badge-bg);
+            border: 1px solid var(--badge-border);
+            color: var(--badge-text);
+            border-radius: 999px;
+            padding: 3px 10px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
         }
 
-        .theme-toggle button {
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 24px;
+        .error {
+            background-color: var(--error-bg);
+            border: 1px solid var(--error-border);
+            color: var(--error-text);
+            padding: 12px 14px;
+            border-radius: 8px;
+        }
+
+        .info {
+            background-color: var(--info-bg);
+            border: 1px solid var(--info-border);
+            color: var(--info-text);
+            padding: 12px 14px;
+            border-radius: 8px;
+        }
+
+        .error p,
+        .info p {
+            margin: 4px 0;
+        }
+
+        .muted-note {
+            margin: 0 0 12px;
+            font-size: 0.85rem;
+            color: var(--muted-text);
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Q-less Solver</h1>
-        <div class="theme-toggle">
-            <button id="dark-mode-toggle" aria-label="Toggle dark mode">
+        <header class="page-header">
+            <div>
+                <h1>Q-less Solver</h1>
+                <p class="subtitle">Arrange all 12 dice into connected 3+ letter words</p>
+            </div>
+            <button type="button" id="dark-mode-toggle" aria-label="Toggle dark mode">
                 🌙
             </button>
-        </div>
+        </header>
 
-        <form id="image-form"
-              hx-post="/solve-image/"
-              hx-target="#results-container"
-              hx-swap="innerHTML"
-              hx-indicator="#loading-indicator"
-              enctype="multipart/form-data">
-            <div>
-                <label for="image">Take a photo of your dice:</label>
-                <input type="file" id="image" name="image" accept="image/*" capture="environment" required>
+        <section class="card">
+            <div class="card-header">
+                <h2>Enter Your 12 Rolled Letters</h2>
+                <button type="button" id="roll-dice-btn" class="secondary">Roll 12 Dice</button>
             </div>
-            <div>
-                <label for="img_min_word_length">Minimum word length (optional):</label>
-                <input type="number" id="img_min_word_length" name="min_word_length" value="3" min="2">
-            </div>
-            <button type="submit">Capture &amp; Solve</button>
-        </form>
-
-        <h3>Or manually enter letters:</h3>
-        <form id="solver-form"
-              hx-post="/solve-htmx/"
-              hx-target="#results-container"
-              hx-swap="innerHTML"
-              hx-indicator="#loading-indicator">
-            <div>
-                <label for="letters">Enter your letters:</label>
-                <input type="text" id="letters" name="letters" value="abcdef" required>
-            </div>
-            <div>
-                <label for="min_word_length">Minimum word length (optional):</label>
-                <input type="number" id="min_word_length" name="min_word_length" value="3" min="2">
-            </div>
-            <button type="submit">Solve</button>
-            <span id="loading-indicator" style="display:none;">Loading...</span>
-        </form>
-
-        {% if default_grids %}
-        <div id="default-grid-wrapper" style="text-align: center; margin-top: 20px;">
-            <button id="prev-solution" aria-label="Previous solution">&lt;</button>
-            <div id="solution-grid" class="solution-grid" style="display:inline-block;">
-                {% for row in default_grids[0] %}
-                <div class="grid-row">
-                    {% for ch in row %}
-                    <div class="grid-cell {% if ch == '.' %}empty{% endif %}">
-                        {{ '' if ch == '.' else ch }}
-                    </div>
-                    {% endfor %}
+            <form id="solver-form"
+                  hx-post="/solve-htmx/"
+                  hx-target="#results-container"
+                  hx-swap="innerHTML"
+                  hx-indicator="#loading-indicator">
+                <label for="letters">12 rolled letters (no Q):</label>
+                <div class="input-row">
+                    <input type="text"
+                           id="letters"
+                           name="letters"
+                           maxlength="12"
+                           placeholder="e.g. rmtoepngtnxc"
+                           autocomplete="off"
+                           spellcheck="false"
+                           required>
+                    <span id="letter-count" class="letter-count">0 / 12</span>
                 </div>
-                {% endfor %}
-            </div>
-            <button id="next-solution" aria-label="Next solution">&gt;</button>
-        </div>
-        {% endif %}
+                <div class="controls-row">
+                    <div class="field-compact">
+                        <label for="min_word_length">Min word length</label>
+                        <input type="number" id="min_word_length" name="min_word_length" value="3" min="2" max="12">
+                    </div>
+                    <div class="field-compact">
+                        <label for="max_solutions">Max solutions</label>
+                        <input type="number" id="max_solutions" name="max_solutions" value="10" min="1" max="50">
+                    </div>
+                    <button type="submit">Solve</button>
+                    <span id="loading-indicator" class="htmx-indicator">Solving...</span>
+                </div>
+            </form>
+        </section>
 
         <div id="results-container">
-            <!-- Results will be loaded here by HTMX -->
-            <p>Enter letters and click "Solve" to see results.</p>
+            <p class="results-placeholder">Enter 12 letters or roll the dice, then click <strong>Solve</strong>.</p>
         </div>
+
+        <section class="card">
+            <div class="card-header">
+                <h3>Photo Capture</h3>
+                <span class="pill-muted">OCR coming in Phase 4</span>
+            </div>
+            <p class="muted-note">Upload or take a photo of your dice (automatic letter detection is queued for Phase 4).</p>
+            <form id="image-form"
+                  hx-post="/solve-image/"
+                  hx-target="#results-container"
+                  hx-swap="innerHTML"
+                  hx-indicator="#loading-indicator"
+                  enctype="multipart/form-data">
+                <div class="input-row">
+                    <input type="file" id="image" name="image" accept="image/*" capture="environment" required>
+                </div>
+                <div class="controls-row">
+                    <div class="field-compact">
+                        <label for="img_min_word_length">Min word length</label>
+                        <input type="number" id="img_min_word_length" name="min_word_length" value="3" min="2" max="12">
+                    </div>
+                    <button type="submit" class="secondary">Capture &amp; Solve</button>
+                </div>
+            </form>
+        </section>
     </div>
 
     <script>
@@ -230,57 +502,32 @@
             setMode(enabled);
         });
 
-        {% if default_grids %}
-        const defaultGrids = {{ default_grids|tojson }};
-        let currentGridIndex = 0;
+        // Manual input counter and Roll 12 Dice helper
+        const lettersInput = document.getElementById('letters');
+        const letterCount = document.getElementById('letter-count');
+        const rollButton = document.getElementById('roll-dice-btn');
 
-        function renderGrid(idx) {
-            const grid = defaultGrids[idx];
-            const container = document.getElementById('solution-grid');
-            container.innerHTML = '';
-            grid.forEach(row => {
-                const rowDiv = document.createElement('div');
-                rowDiv.className = 'grid-row';
-                for (const ch of row) {
-                    const cell = document.createElement('div');
-                    cell.className = 'grid-cell' + (ch === '.' ? ' empty' : '');
-                    cell.textContent = ch === '.' ? '' : ch;
-                    rowDiv.appendChild(cell);
-                }
-                container.appendChild(rowDiv);
-            });
+        function updateLetterCount() {
+            const len = lettersInput.value.trim().length;
+            letterCount.textContent = `${len} / 12`;
         }
 
-        document.getElementById('prev-solution').addEventListener('click', () => {
-            currentGridIndex = (currentGridIndex - 1 + defaultGrids.length) % defaultGrids.length;
-            renderGrid(currentGridIndex);
+        lettersInput.addEventListener('input', updateLetterCount);
+        updateLetterCount();
+
+        rollButton.addEventListener('click', async () => {
+            rollButton.disabled = true;
+            try {
+                const resp = await fetch('/roll/');
+                if (resp.ok) {
+                    const data = await resp.json();
+                    lettersInput.value = data.letters || '';
+                    updateLetterCount();
+                }
+            } finally {
+                rollButton.disabled = false;
+            }
         });
-
-        document.getElementById('next-solution').addEventListener('click', () => {
-            currentGridIndex = (currentGridIndex + 1) % defaultGrids.length;
-            renderGrid(currentGridIndex);
-        });
-        {% endif %}
-
-        // Optional: Client-side script to handle JSON encoding for the form
-        // if hx-ext="json-enc" is not sufficient or for more complex scenarios.
-        // However, hx-ext="json-enc" should handle this for simple cases.
-        // document.body.addEventListener('htmx:configRequest', function(evt) {
-        //   if (evt.detail.elt.id === 'solver-form') {
-        //     evt.detail.headers['Content-Type'] = 'application/json';
-        //     // Parameters are already collected by htmx in evt.detail.parameters
-        //     // For json-enc, htmx will automatically stringify it.
-        //   }
-        // });
-
-        // To handle the HTMX response and render it (if it's not direct HTML from server)
-        // This is more relevant if the server returns JSON that needs client-side templating.
-        // But our FastAPI endpoint is set to return List[GridSolution],
-        // and HTMX will try to put the string representation of this JSON into #results-container.
-        // We need the server to return HTML for HTMX to swap directly.
-        // So, the FastAPI endpoint /solve/ needs to return an HTML snippet.
-        // This means the current plan step 3 (HTMX frontend) and step 2 (FastAPI endpoint) are tightly coupled.
-        // The /solve/ endpoint should render a template with the solutions.
     </script>
 </body>
 </html>

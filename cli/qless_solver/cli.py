@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
-"""
-Command-line interface for qless-solver.
-"""
+"""Command-line interface for qless-solver."""
+
+from __future__ import annotations
 
 import argparse
 import sys
-from typing import List, Optional
+from typing import Optional
 
 from qless_solver import __version__
+from qless_solver.dictionary import Dictionary
 from qless_solver.generator import generate_random_roll
-from qless_solver.solver import solve_qless
+from qless_solver.grid_solver import solve_board
 
 
-def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
+def parse_args(args: Optional[list[str]] = None) -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
         prog="qless-solver",
@@ -25,7 +26,6 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Show version number and exit",
     )
 
-    # Create a mutually exclusive group for input options
     input_group = parser.add_mutually_exclusive_group(required=True)
     input_group.add_argument(
         "--letters",
@@ -48,10 +48,17 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         help="Minimum word length (default: 3)",
     )
     parser.add_argument(
+        "--max-solutions",
+        "-n",
+        type=int,
+        default=5,
+        help="Maximum number of grid solutions to display (default: 5)",
+    )
+    parser.add_argument(
         "--all-words",
         "-a",
         action="store_true",
-        help="Show all possible words, not just complete solutions",
+        help="Show all valid dictionary words formable from the letters",
     )
 
     return parser.parse_args(args)
@@ -61,45 +68,62 @@ def main() -> int:
     """Main entry point for the qless-solver CLI."""
     args = parse_args()
 
-    # Handle random roll generation
     if args.generate:
         letters = generate_random_roll()
         print(f"Generated random roll: {letters.upper()}")
         print("To solve this roll, run:")
-        print(f"  qless-solver --letters {letters}")
+        print(f"  qless-solver --letters {letters.lower()}")
         return 0
 
-    # Get letters from command line argument
     letters = args.letters.strip().lower()
 
-    # Validate input
     if len(letters) != 12:
         print(
-            f"Error: Expected exactly 12 letters, got {len(letters)}", file=sys.stderr
+            f"Error: Expected exactly 12 letters, got {len(letters)}",
+            file=sys.stderr,
         )
         return 1
 
-    if not letters.isalpha():
+    if not (letters.isascii() and letters.isalpha()):
         print("Error: Input must contain only letters", file=sys.stderr)
         return 1
 
-    # Solve the Q-Less game
-    solutions = solve_qless(
+    if args.min_word_length < 2:
+        print("Error: Minimum word length must be at least 2", file=sys.stderr)
+        return 1
+
+    if args.max_solutions < 1:
+        print("Error: Maximum solutions must be at least 1", file=sys.stderr)
+        return 1
+
+    if args.all_words:
+        words = sorted(
+            Dictionary().get_valid_words(letters, min_length=args.min_word_length),
+            key=lambda w: (-len(w), w),
+        )
+        if not words:
+            print("No valid words found.")
+            return 0
+        print(f"Found {len(words)} valid word(s):")
+        for word in words:
+            print(f"- {word}")
+        return 0
+
+    boards = solve_board(
         letters=letters,
         min_word_length=args.min_word_length,
-        all_words=args.all_words,
+        max_solutions=args.max_solutions,
     )
 
-    # Display results
-    if not solutions:
+    if not boards:
         print("No solutions found.")
         return 0
 
-    print(f"Found {len(solutions)} solution(s):")
-    for i, solution in enumerate(solutions, 1):
-        print(f"\nSolution {i}:")
-        for word in solution:
-            print(f"- {word}")
+    print(f"Found {len(boards)} solution(s):")
+    for i, board in enumerate(boards, 1):
+        words = [bw.word.upper() for bw in board.extract_runs(min_length=2)]
+        print(f"\nSolution {i} ({len(words)} words: {', '.join(words)}):")
+        print(board.to_ascii(empty_char=".").upper())
 
     return 0
 
