@@ -192,6 +192,11 @@ def test_solve_letters_htmx_live_and_validation(client: TestClient) -> None:
     assert 'class="word-badge"' in live.text
     assert 'id="prev-result"' in live.text
     assert 'id="next-result"' in live.text
+    assert 'id="result-definition"' in live.text
+    assert 'data-x="0"' in live.text
+    assert 'data-y="0"' in live.text
+    assert '"word_entries"' in live.text
+    assert '"definition"' in live.text
 
     bad_len = client.post(
         "/solve-htmx/", data={"letters": "abc", "min_word_length": "3"}
@@ -294,3 +299,45 @@ def test_solve_image_endpoint_mocked(client: TestClient, monkeypatch) -> None:
     )
     assert response.status_code == 200
     assert "Found 1 solution(s)" in response.text
+
+
+def test_define_word_api_success(client: TestClient) -> None:
+    resp = client.get("/api/define/gorm")
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "word": "GORM",
+        "definition": "foolish person [n] / understand [v]",
+    }
+
+    variant = client.get("/api/define/BUNN")
+    assert variant.status_code == 200
+    assert variant.json()["definition"].startswith("variant of BUN")
+
+
+def test_define_word_api_not_found_and_invalid(client: TestClient) -> None:
+    assert client.get("/api/define/notarealwordxyz").status_code == 404
+    assert client.get("/api/define/123").status_code == 422
+
+
+def test_serialize_solutions_word_entries_cover_board_tiles() -> None:
+    if app is None:
+        pytest.skip("FastAPI app not available for testing.")
+    from qless_solver.grid_solver import solve_qless_grid
+
+    from web.main import _serialize_solutions, get_dictionary
+
+    dictionary = get_dictionary()
+    solutions = solve_qless_grid(
+        letters="rmtoepngtnxc", dictionary=dictionary, max_solutions=3
+    )
+    assert solutions
+    for sol in _serialize_solutions(solutions, dictionary):
+        rows = sol["rows"]
+        assert isinstance(rows, list)
+        entries = sol["word_entries"]
+        assert isinstance(entries, list)
+        assert [e["word"] for e in entries] == sol["words"]
+        for entry in entries:
+            assert entry["definition"]
+            spelled = "".join(rows[y][x] for x, y in entry["cells"])
+            assert spelled.upper() == entry["word"]

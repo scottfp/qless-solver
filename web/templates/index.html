@@ -34,6 +34,14 @@
             --info-bg: #eff6ff;
             --info-border: #93c5fd;
             --info-text: #1e40af;
+            --tile-highlight-bg: #fde68a;
+            --tile-highlight-border: #d97706;
+            --tile-highlight-text: #1e232c;
+            --badge-active-bg: #2563eb;
+            --badge-active-border: #1d4ed8;
+            --badge-active-text: #ffffff;
+            --def-bg: #f8f9fb;
+            --def-border: #d8dde6;
         }
 
         .dark-mode {
@@ -63,6 +71,14 @@
             --info-bg: #1e2e46;
             --info-border: #3b6399;
             --info-text: #bfdbfe;
+            --tile-highlight-bg: #fcd34d;
+            --tile-highlight-border: #f59e0b;
+            --tile-highlight-text: #11131a;
+            --badge-active-bg: #3b82f6;
+            --badge-active-border: #60a5fa;
+            --badge-active-text: #ffffff;
+            --def-bg: #1b2030;
+            --def-border: #343c50;
         }
 
         * {
@@ -335,6 +351,17 @@
             box-shadow: none;
         }
 
+        .grid-cell {
+            transition: background-color 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+        }
+
+        .grid-cell.highlighted {
+            background-color: var(--tile-highlight-bg);
+            border-color: var(--tile-highlight-border);
+            color: var(--tile-highlight-text);
+            transform: translateY(-2px);
+        }
+
         .results-summary {
             margin: 0 0 8px;
             text-align: center;
@@ -361,7 +388,8 @@
             margin-top: 10px;
         }
 
-        .word-badge {
+        .word-badge,
+        button.word-badge {
             background-color: var(--badge-bg);
             border: 1px solid var(--badge-border);
             color: var(--badge-text);
@@ -370,6 +398,45 @@
             font-size: 0.8rem;
             font-weight: 700;
             letter-spacing: 0.04em;
+            font-family: inherit;
+        }
+
+        button.word-badge {
+            cursor: pointer;
+            transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+        }
+
+        button.word-badge:hover,
+        button.word-badge:focus-visible,
+        button.word-badge.active {
+            background-color: var(--badge-active-bg);
+            border-color: var(--badge-active-border);
+            color: var(--badge-active-text);
+            outline: none;
+        }
+
+        .definition-box {
+            margin-top: 12px;
+            padding: 10px 14px;
+            background-color: var(--def-bg);
+            border: 1px solid var(--def-border);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            line-height: 1.45;
+            color: var(--text-color);
+            min-height: 1.45em;
+            text-align: center;
+        }
+
+        .definition-word {
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            margin-right: 6px;
+        }
+
+        .definition-hint {
+            color: var(--muted-text);
+            font-style: italic;
         }
 
         .error {

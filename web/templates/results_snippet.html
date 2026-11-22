@@ -22,9 +22,10 @@
             <button type="button" id="prev-result" class="nav-arrow secondary" aria-label="Previous result" {% if solutions|length <= 1 %}disabled{% endif %}>&lt;</button>
             <div id="result-grid" class="solution-grid">
                 {% for row in first_sol.rows %}
+                    {% set row_idx = loop.index0 %}
                     <div class="grid-row">
                         {% for ch in row %}
-                            <div class="grid-cell {% if ch == '.' %}empty{% endif %}">
+                            <div class="grid-cell {% if ch == '.' %}empty{% endif %}" data-x="{{ loop.index0 }}" data-y="{{ row_idx }}">
                                 {{ '' if ch == '.' else ch }}
                             </div>
                         {% endfor %}
@@ -41,9 +42,13 @@
         </div>
 
         <div id="result-words" class="word-list">
-            {% for word in first_sol.words %}
-                <span class="word-badge">{{ word }}</span>
+            {% for entry in first_sol.word_entries %}
+                <button type="button" class="word-badge" data-word-idx="{{ loop.index0 }}" title="{{ entry.definition or 'Definition unavailable' }}">{{ entry.word }}</button>
             {% endfor %}
+        </div>
+
+        <div id="result-definition" class="definition-box" aria-live="polite">
+            <span class="definition-hint">Hover or tap a word to see its definition.</span>
         </div>
     </section>
 
@@ -52,42 +57,105 @@
             const solutions = {{ serialized_solutions|tojson }};
             if (!solutions || solutions.length === 0) return;
 
+            const HINT = 'Hover or tap a word to see its definition.';
             let idx = 0;
+            let pinnedWordIdx = null;
             const gridEl = document.getElementById('result-grid');
             const counterEl = document.getElementById('result-counter');
             const metaEl = document.getElementById('result-meta');
             const wordsEl = document.getElementById('result-words');
+            const defEl = document.getElementById('result-definition');
             const prevBtn = document.getElementById('prev-result');
             const nextBtn = document.getElementById('next-result');
 
+            function entriesFor(sol) {
+                return sol.word_entries
+                    || (sol.words || []).map((w) => ({ word: w, definition: null, cells: [] }));
+            }
+
+            function showWord(wordIdx) {
+                const entries = entriesFor(solutions[idx]);
+                gridEl.querySelectorAll('.grid-cell.highlighted')
+                    .forEach((c) => c.classList.remove('highlighted'));
+                wordsEl.querySelectorAll('.word-badge').forEach((b) => {
+                    b.classList.toggle('active', Number(b.dataset.wordIdx) === pinnedWordIdx);
+                });
+
+                defEl.replaceChildren();
+                const entry = wordIdx === null ? null : entries[wordIdx];
+                if (!entry) {
+                    const hint = document.createElement('span');
+                    hint.className = 'definition-hint';
+                    hint.textContent = HINT;
+                    defEl.appendChild(hint);
+                    return;
+                }
+
+                (entry.cells || []).forEach(([x, y]) => {
+                    const cell = gridEl.querySelector(`.grid-cell[data-x="${x}"][data-y="${y}"]`);
+                    if (cell) cell.classList.add('highlighted');
+                });
+
+                const wordSpan = document.createElement('span');
+                wordSpan.className = 'definition-word';
+                wordSpan.textContent = entry.word;
+                const textSpan = document.createElement('span');
+                textSpan.className = 'definition-text';
+                textSpan.textContent = entry.definition || 'Definition unavailable.';
+                defEl.append(wordSpan, textSpan);
+            }
+
+            function bindBadge(badge) {
+                const wordIdx = Number(badge.dataset.wordIdx);
+                badge.addEventListener('mouseenter', () => showWord(wordIdx));
+                badge.addEventListener('focus', () => showWord(wordIdx));
+                badge.addEventListener('mouseleave', () => showWord(pinnedWordIdx));
+                badge.addEventListener('blur', () => showWord(pinnedWordIdx));
+                badge.addEventListener('click', () => {
+                    pinnedWordIdx = pinnedWordIdx === wordIdx ? null : wordIdx;
+                    showWord(pinnedWordIdx ?? wordIdx);
+                });
+            }
+
             function render(newIdx) {
                 idx = (newIdx + solutions.length) % solutions.length;
+                pinnedWordIdx = null;
                 const sol = solutions[idx];
 
-                gridEl.innerHTML = '';
-                sol.rows.forEach((row) => {
+                gridEl.replaceChildren();
+                sol.rows.forEach((row, rowIdx) => {
                     const rowDiv = document.createElement('div');
                     rowDiv.className = 'grid-row';
-                    for (const ch of row) {
+                    [...row].forEach((ch, colIdx) => {
                         const cell = document.createElement('div');
                         cell.className = 'grid-cell' + (ch === '.' ? ' empty' : '');
+                        cell.dataset.x = String(colIdx);
+                        cell.dataset.y = String(rowIdx);
                         cell.textContent = ch === '.' ? '' : ch;
                         rowDiv.appendChild(cell);
-                    }
+                    });
                     gridEl.appendChild(rowDiv);
                 });
 
                 counterEl.textContent = `Solution ${idx + 1} of ${solutions.length}`;
                 metaEl.textContent = `${sol.word_count} words (${sol.dimensions})`;
 
-                wordsEl.innerHTML = '';
-                sol.words.forEach((word) => {
-                    const badge = document.createElement('span');
+                wordsEl.replaceChildren();
+                entriesFor(sol).forEach((entry, wordIdx) => {
+                    const badge = document.createElement('button');
+                    badge.type = 'button';
                     badge.className = 'word-badge';
-                    badge.textContent = word;
+                    badge.dataset.wordIdx = String(wordIdx);
+                    badge.title = entry.definition || 'Definition unavailable';
+                    badge.textContent = entry.word;
+                    bindBadge(badge);
                     wordsEl.appendChild(badge);
                 });
+
+                showWord(null);
             }
+
+            wordsEl.querySelectorAll('.word-badge').forEach(bindBadge);
 
             if (prevBtn && nextBtn) {
                 prevBtn.addEventListener('click', () => render(idx - 1));
