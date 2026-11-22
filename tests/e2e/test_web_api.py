@@ -341,3 +341,51 @@ def test_serialize_solutions_word_entries_cover_board_tiles() -> None:
             assert entry["definition"]
             spelled = "".join(rows[y][x] for x, y in entry["cells"])
             assert spelled.upper() == entry["word"]
+
+
+def test_solve_api_excluded_words(client: TestClient) -> None:
+    resp = client.post(
+        "/api/solve/",
+        json={
+            "letters": "rmtoepngtnxc",
+            "min_word_length": 3,
+            "max_solutions": 3,
+            "excluded_words": ["context"],
+        },
+    )
+    assert resp.status_code == 200
+    solutions = resp.json()
+    assert len(solutions) >= 1
+    for sol in solutions:
+        words = [pw["word"].lower() for pw in sol["grid"]["words"]]
+        assert "context" not in words
+
+
+def test_solve_htmx_excluded_words(client: TestClient) -> None:
+    resp = client.post(
+        "/solve-htmx/",
+        data={
+            "letters": "rmtoepngtnxc",
+            "min_word_length": "3",
+            "max_solutions": "3",
+            "excluded_words": "context, gorm",
+        },
+    )
+    assert resp.status_code == 200
+    assert "Found " in resp.text
+    assert '"word": "CONTEXT"' not in resp.text
+    assert '"word": "GORM"' not in resp.text
+
+    empty_resp = client.post(
+        "/solve-htmx/",
+        data={
+            "letters": "abcdefghijkl",
+            "min_word_length": "12",
+            "max_solutions": "3",
+            "excluded_words": "abcdefghijkl",
+        },
+    )
+    assert empty_resp.status_code == 200
+    assert "No solutions found" in empty_resp.text
+    assert "excluding:" in empty_resp.text
+    assert "ABCDEFGHIJKL" in empty_resp.text

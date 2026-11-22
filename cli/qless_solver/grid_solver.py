@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 from collections import Counter, defaultdict
-from typing import Optional
+from typing import Iterable, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 from qless_solver.board import Board, CanonicalBoardKey, Direction
@@ -124,6 +124,7 @@ def _try_place(
     rem: Counter[str],
     dictionary: Dictionary,
     min_word_length: int,
+    excluded: frozenset[str] = frozenset(),
 ) -> Optional[list[tuple[tuple[int, int], str]]]:
     """Validate and return new tiles for placing ``word`` at ``(sx, sy)``, or None."""
     dx, dy = (1, 0) if direction == "across" else (0, 1)
@@ -181,7 +182,9 @@ def _try_place(
             if len(cross_chars) < min_word_length:
                 return None
             cross_word = "".join(cross_chars)
-            if not dictionary.is_valid_word(cross_word, min_length=min_word_length):
+            if cross_word in excluded or not dictionary.is_valid_word(
+                cross_word, min_length=min_word_length
+            ):
                 return None
 
     return new_cells
@@ -198,6 +201,7 @@ def solve_board(
     deduplicate_transpose: bool = True,
     timeout_seconds: Optional[float] = 5.0,
     max_nodes: Optional[int] = 200_000,
+    excluded_words: Optional[Iterable[str]] = None,
 ) -> list[Board]:
     """Find valid Q-Less ``Board`` arrangements for ``letters``."""
     if min_word_length < 2:
@@ -214,9 +218,20 @@ def solve_board(
     ):
         return []
 
+    excluded: frozenset[str] = (
+        frozenset(
+            cleaned_w
+            for w in excluded_words
+            for cleaned_w in (w.strip().lower(),)
+            if cleaned_w and cleaned_w.isascii() and cleaned_w.isalpha()
+        )
+        if excluded_words is not None
+        else frozenset()
+    )
+
     active_dict = dictionary if dictionary is not None else Dictionary()
     candidates = sorted(
-        active_dict.get_valid_words(cleaned, min_length=min_word_length)
+        active_dict.get_valid_words(cleaned, min_length=min_word_length) - excluded
     )
     if not candidates:
         return []
@@ -345,6 +360,7 @@ def solve_board(
                             rem,
                             active_dict,
                             min_word_length,
+                            excluded,
                         )
                         if placed is None:
                             continue
@@ -410,6 +426,7 @@ def solve_qless_grid(
     deduplicate_transpose: bool = True,
     timeout_seconds: Optional[float] = 5.0,
     max_nodes: Optional[int] = 200_000,
+    excluded_words: Optional[Iterable[str]] = None,
 ) -> list[GridSolution]:
     """Solve Q-Less and wrap resulting boards into ``GridSolution`` objects."""
     boards = solve_board(
@@ -422,6 +439,7 @@ def solve_qless_grid(
         deduplicate_transpose=deduplicate_transpose,
         timeout_seconds=timeout_seconds,
         max_nodes=max_nodes,
+        excluded_words=excluded_words,
     )
     return [
         GridSolution(

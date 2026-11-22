@@ -153,5 +153,49 @@ def test_cli_invalid_input() -> None:
     assert "Minimum word length must be at least 2" in bad_min_len.stderr
 
 
+def test_cli_exclude_words() -> None:
+    """Test --exclude filters solved boards and --all-words output."""
+    pytest.importorskip("qless_solver")
+
+    solved = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "qless_solver.cli",
+            "--letters",
+            "rmtoepngtnxc",
+            "--max-solutions",
+            "2",
+            "--exclude",
+            "context",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert solved.returncode == 0
+    assert "Found " in solved.stdout
+    assert "CONTEXT" not in solved.stdout
+
+    listed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "qless_solver.cli",
+            "--letters",
+            "rmtoepngtnxc",
+            "--all-words",
+            "--exclude",
+            "comet,prong",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert listed.returncode == 0
+    assert "valid word(s):" in listed.stdout
+    assert "- comet" not in listed.stdout
+    assert "- prong" not in listed.stdout
+    assert "- next" in listed.stdout
+
+
 if __name__ == "__main__":
     pytest.main()

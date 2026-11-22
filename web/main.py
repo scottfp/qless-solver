@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 import sys
 from contextlib import asynccontextmanager
 from typing import AsyncIterator, Optional
@@ -65,6 +66,22 @@ class SolveRequestBody(BaseModel):
     letters: str
     min_word_length: int = 3
     max_solutions: int = Field(default=10, ge=1, le=50)
+    excluded_words: list[str] = Field(default_factory=list)
+
+
+def parse_excluded_words(raw: Optional[str | list[str]]) -> list[str]:
+    """Normalize comma/whitespace-separated or list-based excluded words."""
+    if not raw:
+        return []
+    items = [raw] if isinstance(raw, str) else raw
+    excluded: list[str] = []
+    seen: set[str] = set()
+    for item in items:
+        for token in re.split(r"[,\s]+", item.strip().lower()):
+            if token and token.isascii() and token.isalpha() and token not in seen:
+                seen.add(token)
+                excluded.append(token)
+    return excluded
 
 
 def validate_letter_input(
@@ -159,6 +176,7 @@ async def solve_letters_htmx(
     letters: str = Form(...),
     min_word_length: int = Form(3),
     max_solutions: int = Form(10),
+    excluded_words: str = Form(""),
 ) -> HTMLResponse:
     """Endpoint for HTMX form submission returning an interactive HTML results snippet."""
     if solve_qless_grid is None:
@@ -169,6 +187,7 @@ async def solve_letters_htmx(
 
     cleaned, validation_error = validate_letter_input(letters, min_word_length)
     clamped_max = max(1, min(max_solutions, 50))
+    excluded = parse_excluded_words(excluded_words)
     solutions: list[GridSolution] = []
     error_message = validation_error
 
@@ -181,6 +200,7 @@ async def solve_letters_htmx(
                 dictionary=get_dictionary(),
                 max_solutions=clamped_max,
                 timeout_seconds=3.0,
+                excluded_words=excluded or None,
             )
         except FileNotFoundError as e:
             error_message = f"Dictionary file not found: {e}"
@@ -201,6 +221,7 @@ async def solve_letters_htmx(
             "info_message": None,
             "letters_submitted": cleaned,
             "min_word_length_submitted": min_word_length,
+            "excluded_words_submitted": [w.upper() for w in excluded],
         },
     )
 
@@ -235,6 +256,7 @@ async def solve_letters_image(
                 ),
                 "letters_submitted": "",
                 "min_word_length_submitted": min_word_length,
+                "excluded_words_submitted": [],
             },
         )
 
@@ -271,6 +293,7 @@ async def solve_letters_image(
             "info_message": None,
             "letters_submitted": cleaned,
             "min_word_length_submitted": min_word_length,
+            "excluded_words_submitted": [],
         },
     )
 
@@ -293,6 +316,8 @@ async def solve_letters_api(request_body: SolveRequestBody) -> list[GridSolution
     if validation_error is not None:
         raise HTTPException(status_code=422, detail=validation_error)
 
+    excluded = parse_excluded_words(request_body.excluded_words)
+
     try:
         return await asyncio.to_thread(
             solve_qless_grid,
@@ -301,6 +326,7 @@ async def solve_letters_api(request_body: SolveRequestBody) -> list[GridSolution
             dictionary=get_dictionary(),
             max_solutions=request_body.max_solutions,
             timeout_seconds=3.0,
+            excluded_words=excluded or None,
         )
     except FileNotFoundError as e:
         raise HTTPException(status_code=500, detail=f"Dictionary file not found: {e}")

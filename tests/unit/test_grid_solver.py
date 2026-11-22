@@ -306,3 +306,43 @@ def test_solve_board_seeded_random_dice_rolls_benchmark(
 
     assert solved_count >= 5
     assert elapsed < 10.0
+
+
+def test_solve_board_excludes_primary_words(real_dict: Dictionary) -> None:
+    baseline = solve_board("rmtoepngtnxc", dictionary=real_dict, max_solutions=3)
+    assert baseline
+    assert any(w.word == "context" for w in baseline[0].extract_runs(min_length=2))
+
+    filtered = solve_board(
+        "rmtoepngtnxc",
+        dictionary=real_dict,
+        max_solutions=5,
+        excluded_words=["CONTEXT"],
+    )
+    assert filtered
+    for board in filtered:
+        res = validate_board(board, "rmtoepngtnxc", real_dict)
+        assert res.is_valid, res.errors
+        assert all(w.word != "context" for w in res.words)
+
+
+def test_solve_board_excludes_perpendicular_cross_words() -> None:
+    # Placing down words side-by-side forms perpendicular cross-word "pot" in row 1
+    # even when "pot" itself is removed from primary candidates.
+    cross_dict = Dictionary(words=["bar", "pot", "ant", "bpa", "aon", "rtt"])
+    baseline = solve_board("barpotant", dictionary=cross_dict, max_solutions=5)
+    assert len(baseline) == 1
+    assert any(w.word == "pot" for w in baseline[0].extract_runs(min_length=2))
+
+    blocked = solve_board(
+        "barpotant",
+        dictionary=cross_dict,
+        max_solutions=5,
+        excluded_words=["pot"],
+    )
+    assert blocked == []
+
+
+def test_solve_board_excluding_all_candidates_returns_empty() -> None:
+    tiny_dict = Dictionary(words=["cat"])
+    assert solve_board("cat", dictionary=tiny_dict, excluded_words=["cat"]) == []

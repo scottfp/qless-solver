@@ -47,6 +47,11 @@
             --badge-active-text: #ffffff;
             --def-bg: #f8f9fb;
             --def-border: #d8dde6;
+            --exclude-bg: #fef2f2;
+            --exclude-border: #fca5a5;
+            --exclude-text: #b91c1c;
+            --exclude-hover-bg: #fee2e2;
+            --exclude-hover-border: #ef4444;
         }
 
         .dark-mode {
@@ -89,6 +94,11 @@
             --badge-active-text: #ffffff;
             --def-bg: #1b2030;
             --def-border: #343c50;
+            --exclude-bg: #351c22;
+            --exclude-border: #8b3a46;
+            --exclude-text: #fca5a5;
+            --exclude-hover-bg: #4c232c;
+            --exclude-hover-border: #f87171;
         }
 
         * {
@@ -462,6 +472,11 @@
             line-height: 1.45;
             color: var(--text-color);
             min-height: 1.45em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 6px 10px;
             text-align: center;
         }
 
@@ -474,6 +489,89 @@
         .definition-hint {
             color: var(--muted-text);
             font-style: italic;
+        }
+
+        button.exclude-btn {
+            background-color: var(--exclude-bg);
+            border: 1px solid var(--exclude-border);
+            color: var(--exclude-text);
+            border-radius: 999px;
+            padding: 2px 10px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background-color 0.12s ease, border-color 0.12s ease;
+        }
+
+        button.exclude-btn:hover,
+        button.exclude-btn:focus-visible {
+            background-color: var(--exclude-hover-bg);
+            border-color: var(--exclude-hover-border);
+            outline: none;
+        }
+
+        .excluded-bar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .excluded-bar[hidden] {
+            display: none;
+        }
+
+        .excluded-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--muted-text);
+            margin-right: 2px;
+        }
+
+        button.excluded-chip {
+            background-color: var(--exclude-bg);
+            border: 1px solid var(--exclude-border);
+            color: var(--exclude-text);
+            border-radius: 999px;
+            padding: 2px 9px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            font-family: inherit;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: background-color 0.12s ease, border-color 0.12s ease;
+        }
+
+        button.excluded-chip:hover,
+        button.excluded-chip:focus-visible {
+            background-color: var(--exclude-hover-bg);
+            border-color: var(--exclude-hover-border);
+            outline: none;
+        }
+
+        button.clear-excluded-btn {
+            background: transparent;
+            border: none;
+            color: var(--muted-text);
+            padding: 2px 6px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        button.clear-excluded-btn:hover,
+        button.clear-excluded-btn:focus-visible {
+            color: var(--text-color);
+            outline: none;
         }
 
         .error {
@@ -550,6 +648,8 @@
                     <button type="submit">Solve</button>
                     <span id="loading-indicator" class="htmx-indicator">Solving...</span>
                 </div>
+                <input type="hidden" id="excluded_words" name="excluded_words" value="">
+                <div id="excluded-words-bar" class="excluded-bar" aria-live="polite" hidden></div>
             </form>
         </section>
 
@@ -606,18 +706,100 @@
             setMode(enabled);
         });
 
-        // Manual input counter and Roll 12 Dice helper
+        // Manual input counter, excluded word chips, and Roll 12 Dice helper
+        const solverForm = document.getElementById('solver-form');
         const lettersInput = document.getElementById('letters');
         const letterCount = document.getElementById('letter-count');
         const rollButton = document.getElementById('roll-dice-btn');
+        const excludedInput = document.getElementById('excluded_words');
+        const excludedBar = document.getElementById('excluded-words-bar');
+        let excludedWords = [];
+        let lastRollLetters = '';
+
+        function renderExcludedBar() {
+            excludedInput.value = excludedWords.join(',');
+            excludedBar.replaceChildren();
+            if (excludedWords.length === 0) {
+                excludedBar.hidden = true;
+                return;
+            }
+            excludedBar.hidden = false;
+
+            const label = document.createElement('span');
+            label.className = 'excluded-label';
+            label.textContent = 'Excluded:';
+            excludedBar.appendChild(label);
+
+            excludedWords.forEach((word) => {
+                const chip = document.createElement('button');
+                chip.type = 'button';
+                chip.className = 'excluded-chip';
+                chip.title = `Restore ${word}`;
+                chip.setAttribute('aria-label', `Remove ${word} from excluded words`);
+
+                const wordText = document.createElement('span');
+                wordText.textContent = word;
+                const times = document.createElement('span');
+                times.setAttribute('aria-hidden', 'true');
+                times.textContent = '×';
+                chip.append(wordText, times);
+
+                chip.addEventListener('click', () => window.qlessRemoveExcludedWord(word));
+                excludedBar.appendChild(chip);
+            });
+
+            const clearBtn = document.createElement('button');
+            clearBtn.type = 'button';
+            clearBtn.className = 'clear-excluded-btn';
+            clearBtn.textContent = 'Clear all';
+            clearBtn.addEventListener('click', () => {
+                excludedWords = [];
+                renderExcludedBar();
+                resubmitSolver();
+            });
+            excludedBar.appendChild(clearBtn);
+        }
+
+        function resubmitSolver() {
+            if (lettersInput.value.trim().length === 12) {
+                solverForm.requestSubmit();
+            }
+        }
+
+        window.qlessExcludeWord = (word) => {
+            const cleaned = String(word || '').trim().toUpperCase();
+            if (!cleaned || excludedWords.includes(cleaned)) return;
+            excludedWords.push(cleaned);
+            lastRollLetters = lettersInput.value.trim().toLowerCase();
+            renderExcludedBar();
+            resubmitSolver();
+        };
+
+        window.qlessRemoveExcludedWord = (word) => {
+            const cleaned = String(word || '').trim().toUpperCase();
+            excludedWords = excludedWords.filter((w) => w !== cleaned);
+            renderExcludedBar();
+            resubmitSolver();
+        };
 
         function updateLetterCount() {
             const len = lettersInput.value.trim().length;
             letterCount.textContent = `${len} / 12`;
         }
 
-        lettersInput.addEventListener('input', updateLetterCount);
+        lettersInput.addEventListener('input', () => {
+            updateLetterCount();
+            const current = lettersInput.value.trim().toLowerCase();
+            if (current !== lastRollLetters && excludedWords.length > 0) {
+                excludedWords = [];
+                renderExcludedBar();
+            }
+        });
         updateLetterCount();
+
+        solverForm.addEventListener('submit', () => {
+            lastRollLetters = lettersInput.value.trim().toLowerCase();
+        });
 
         rollButton.addEventListener('click', async () => {
             rollButton.disabled = true;
@@ -626,6 +808,11 @@
                 if (resp.ok) {
                     const data = await resp.json();
                     lettersInput.value = data.letters || '';
+                    lastRollLetters = lettersInput.value.trim().toLowerCase();
+                    if (excludedWords.length > 0) {
+                        excludedWords = [];
+                        renderExcludedBar();
+                    }
                     updateLetterCount();
                 }
             } finally {

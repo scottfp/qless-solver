@@ -99,13 +99,27 @@
                     if (cell) cell.classList.add('highlighted');
                 });
 
+                const content = document.createElement('span');
+                content.className = 'definition-content';
                 const wordSpan = document.createElement('span');
                 wordSpan.className = 'definition-word';
                 wordSpan.textContent = entry.word;
                 const textSpan = document.createElement('span');
                 textSpan.className = 'definition-text';
                 textSpan.textContent = entry.definition || 'Definition unavailable.';
-                defEl.append(wordSpan, textSpan);
+                content.append(wordSpan, textSpan);
+                defEl.appendChild(content);
+
+                if (wordIdx !== null && wordIdx === pinnedWordIdx && typeof window.qlessExcludeWord === 'function') {
+                    const excludeBtn = document.createElement('button');
+                    excludeBtn.type = 'button';
+                    excludeBtn.className = 'exclude-btn';
+                    excludeBtn.textContent = 'Exclude ×';
+                    excludeBtn.title = `Exclude ${entry.word} and re-solve`;
+                    excludeBtn.setAttribute('aria-label', `Exclude ${entry.word} and re-solve`);
+                    excludeBtn.addEventListener('click', () => window.qlessExcludeWord(entry.word));
+                    defEl.appendChild(excludeBtn);
+                }
             }
 
             function bindBadge(badge) {
@@ -228,6 +242,9 @@
     </script>
 {% else %}
     <div class="info">
-        <p>No solutions found for letters: <strong>{{ letters_submitted }}</strong> (min length: {{ min_word_length_submitted }}).</p>
+        <p>
+            No solutions found for letters: <strong>{{ letters_submitted }}</strong>
+            (min length: {{ min_word_length_submitted }}{% if excluded_words_submitted %}, excluding: <strong>{{ excluded_words_submitted|join(', ') }}</strong>{% endif %}).
+        </p>
     </div>
 {% endif %}
