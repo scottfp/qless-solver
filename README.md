@@ -10,12 +10,13 @@ Q-Less is a solitaire dice game where players attempt to create words using the 
 
 - Command-line interface for quick solving
 - Accepts string input via argparse
-- Validates words against a dictionary (Merriam-Webster)
-- Returns all possible valid words from the given letters
+- Validates words against a dictionary (`dictionary.txt` NWL word list)
+- Returns valid words from the given letters
+- FastAPI + HTMX web interface with dark mode support
 
 ### Planned Features
 
-- Simple web interface using FastAPI + HTMX (Phase 2)
+- Complete 2D grid-based crossword solver
 - Computer vision to detect letters from a photo of the game (Future)
 
 ## Installation
@@ -31,9 +32,10 @@ python3.11 -m venv venv
 source venv/bin/activate  # On Windows, use: venv\Scripts\activate
 
 # Install dependencies for development and testing
-pip install -e .[dev]
+pip install -e ".[dev]"
 
-# Install system packages required for OCR (optional)
+# Optional: install OCR dependencies and system packages
+pip install -e ".[dev,ocr]"
 sudo apt-get update
 sudo apt-get install -y tesseract-ocr libgl1 libglib2.0-0
 
@@ -44,7 +46,10 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 # Install dependencies with uv
 uv venv -p 3.11
 source .venv/bin/activate  # On Windows, use: .venv\Scripts\activate
-uv pip install -e .[dev]
+uv pip install -e ".[dev]"
+
+# Optional: include OCR dependencies with uv
+uv pip install -e ".[dev,ocr]"
 ```
 
 ## Usage
@@ -138,13 +143,13 @@ pre-commit run --all-files
 ### Technology Stack
 
 - **Python**: Latest stable version (3.11+)
-- **Dictionary Source**: TBD (Evaluating options)
+- **Dictionary Source**: `dictionary.txt` (NWL word list)
 - **Testing**: pytest
-- **Web Framework**: FastAPI + HTMX (Phase 2)
+- **Web Framework**: FastAPI + HTMX
 - **Code Quality**: Black, isort, mypy, ruff, pre-commit
 - **Development**: Dev Containers, GitHub Actions
 - **Data Validation**: Pydantic for robust data structures and validation
-- **Computer Vision/OCR**: OpenCV, EasyOCR, and Tesseract OCR
+- **Computer Vision/OCR (optional `[ocr]` extra)**: OpenCV, EasyOCR, and Tesseract OCR
 
 ### Development Practices
 
