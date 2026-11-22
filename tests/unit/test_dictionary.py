@@ -167,5 +167,25 @@ def test_bitmask_index_invalidated_on_reload_and_custom_words(tmp_path: Path) ->
     assert "qqqqq" in get_valid_words("qqqqq", min_length=3)
 
 
+def test_qless_dictionary_path_env_override(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """QLESS_DICTIONARY_PATH overrides default dictionary lookup cleanly."""
+    env_dict = tmp_path / "env_words.txt"
+    env_dict.write_text("MANGO\nPLUM\n", encoding="utf-8")
+
+    monkeypatch.setenv("QLESS_DICTIONARY_PATH", str(env_dict))
+    loaded = load_dictionary()
+    assert loaded == {"mango", "plum"}
+
+    wrapper = Dictionary()
+    assert wrapper.words == {"mango", "plum"}
+    assert wrapper.get_valid_words("mangos", min_length=3) == {"mango"}
+
+    # After monkeypatch cleans up, default dictionary lookup still works
+    monkeypatch.delenv("QLESS_DICTIONARY_PATH")
+    assert "eat" in load_dictionary()
+
+
 if __name__ == "__main__":
     pytest.main()

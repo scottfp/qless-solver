@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import os
 import sys
 from contextlib import asynccontextmanager
@@ -98,6 +99,17 @@ def _serialize_solutions(solutions: list[GridSolution]) -> list[dict[str, object
     return serialized
 
 
+@app.get("/healthz", tags=["Health"])
+async def healthz() -> JSONResponse:
+    """Health check endpoint verifying solver and dictionary readiness."""
+    if solve_qless_grid is None:
+        raise HTTPException(status_code=503, detail="Solver unavailable")
+    dictionary = get_dictionary()
+    if dictionary is None or not dictionary.words:
+        raise HTTPException(status_code=503, detail="Dictionary unavailable")
+    return JSONResponse({"status": "ok", "dictionary_words": len(dictionary.words)})
+
+
 @app.get("/", response_class=HTMLResponse)
 async def read_index(request: Request) -> HTMLResponse:
     """Serves the main HTML page."""
@@ -135,7 +147,8 @@ async def solve_letters_htmx(
 
     if error_message is None:
         try:
-            solutions = solve_qless_grid(
+            solutions = await asyncio.to_thread(
+                solve_qless_grid,
                 letters=cleaned,
                 min_word_length=min_word_length,
                 dictionary=get_dictionary(),
@@ -202,7 +215,8 @@ async def solve_letters_image(
 
     if error_message is None:
         try:
-            solutions = solve_qless_grid(
+            solutions = await asyncio.to_thread(
+                solve_qless_grid,
                 letters=cleaned,
                 min_word_length=min_word_length,
                 dictionary=get_dictionary(),
@@ -249,7 +263,8 @@ async def solve_letters_api(request_body: SolveRequestBody) -> list[GridSolution
         raise HTTPException(status_code=422, detail=validation_error)
 
     try:
-        return solve_qless_grid(
+        return await asyncio.to_thread(
+            solve_qless_grid,
             letters=cleaned,
             min_word_length=request_body.min_word_length,
             dictionary=get_dictionary(),
