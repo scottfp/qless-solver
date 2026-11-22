@@ -25,6 +25,15 @@ def client():
         yield c
 
 
+def test_healthz_endpoint(client: TestClient) -> None:
+    response = client.get("/healthz")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "ok"
+    assert isinstance(data["dictionary_words"], int)
+    assert data["dictionary_words"] > 1000
+
+
 def test_read_root_html(client: TestClient) -> None:
     response = client.get("/")
     assert response.status_code == 200

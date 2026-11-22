@@ -3,6 +3,7 @@ Dictionary module for the qless-solver.
 Provides functions for validating words and finding valid words.
 """
 
+import os
 from collections import Counter
 from pathlib import Path
 from typing import Dict, Iterable, Optional, Set, Tuple
@@ -13,6 +14,20 @@ WordIndex = Tuple[WordIndexEntry, ...]
 DEFAULT_DICTIONARY_PATH = (
     Path(__file__).parent.parent.parent / "dictionary.txt"
 ).resolve()
+
+
+def _resolve_default_dictionary_path() -> Path:
+    """Resolve the default dictionary path across local, installed, and container layouts."""
+    env_path = os.environ.get("QLESS_DICTIONARY_PATH", "").strip()
+    if env_path:
+        return Path(env_path).resolve()
+    if DEFAULT_DICTIONARY_PATH.exists():
+        return DEFAULT_DICTIONARY_PATH
+    cwd_candidate = (Path.cwd() / "dictionary.txt").resolve()
+    if cwd_candidate.exists():
+        return cwd_candidate
+    return DEFAULT_DICTIONARY_PATH
+
 
 # Global cache for dictionaries and precomputed bitmask indices keyed by resolved path
 _DICTIONARY_CACHE: Dict[Path, Set[str]] = {}
@@ -96,7 +111,7 @@ def load_dictionary(
     """
     is_default = dictionary_path is None
     resolved_path = (
-        DEFAULT_DICTIONARY_PATH
+        _resolve_default_dictionary_path()
         if dictionary_path is None
         else Path(dictionary_path).resolve()
     )
@@ -133,7 +148,7 @@ def load_dictionary(
 
 def _get_cached_index(dictionary_path: Optional[Path] = None) -> WordIndex:
     resolved_path = (
-        DEFAULT_DICTIONARY_PATH
+        _resolve_default_dictionary_path()
         if dictionary_path is None
         else Path(dictionary_path).resolve()
     )
@@ -213,7 +228,7 @@ def add_custom_words(words: Set[str]) -> None:
     dictionary = load_dictionary()
     for word in words:
         dictionary.add(word.lower())
-    _DICTIONARY_INDEX_CACHE.pop(DEFAULT_DICTIONARY_PATH, None)
+    _DICTIONARY_INDEX_CACHE.pop(_resolve_default_dictionary_path(), None)
 
 
 class Dictionary:
@@ -237,7 +252,9 @@ class Dictionary:
             }
         else:
             self._source_path = (
-                DEFAULT_DICTIONARY_PATH if path is None else Path(path).resolve()
+                _resolve_default_dictionary_path()
+                if path is None
+                else Path(path).resolve()
             )
             self.words = set(load_dictionary(path))
 

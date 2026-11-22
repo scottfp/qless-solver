@@ -111,6 +111,10 @@ The Q-less Solver includes a web-based user interface built with FastAPI and HTM
 4.  **Capture a Photo**:
     The page provides a *Capture & Solve* form that uses your device's camera (or allows uploading an image) to detect letters automatically.
 
+## Remote Hosting (Fly.io)
+
+To package and deploy the web app on Fly.io (`iad`, `256mb`, `suspend`-on-idle, stateless Docker image), see [docs/deploy-fly.md](docs/deploy-fly.md).
+
 ## Development
 
 ### Using Dev Containers
