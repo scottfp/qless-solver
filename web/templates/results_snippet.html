@@ -48,7 +48,7 @@
         </div>
 
         <div id="result-definition" class="definition-box" aria-live="polite">
-            <span class="definition-hint">Click or tap any word or tile to see its definition.</span>
+            <span class="definition-hint">Click or tap any word on the board or below to see its definition.</span>
         </div>
     </section>
 
@@ -59,8 +59,8 @@
 
             const canHover = window.matchMedia('(hover: hover)').matches;
             const HINT = canHover
-                ? 'Click any word or tile to see its definition.'
-                : 'Tap any word or tile to see its definition.';
+                ? 'Click any word on the board or below to see its definition.'
+                : 'Tap any word on the board or below to see its definition.';
             let idx = 0;
             let pinnedWordIdx = null;
             const gridEl = document.getElementById('result-grid');
@@ -123,6 +123,7 @@
             function render(newIdx) {
                 idx = (newIdx + solutions.length) % solutions.length;
                 pinnedWordIdx = null;
+                clearPreview();
                 const sol = solutions[idx];
 
                 gridEl.replaceChildren();
@@ -183,16 +184,21 @@
             function clearPreview() {
                 gridEl.querySelectorAll('.grid-cell.preview')
                     .forEach((c) => c.classList.remove('preview'));
+                wordsEl.querySelectorAll('.word-badge.preview')
+                    .forEach((b) => b.classList.remove('preview'));
             }
 
             function previewAt(cell) {
                 clearPreview();
                 if (!cell || cell.classList.contains('empty')) return;
                 const next = nextPinAt(Number(cell.dataset.x), Number(cell.dataset.y));
-                cellsOf(next ?? null).forEach(([x, y]) => {
+                if (next === null || next === undefined) return;
+                cellsOf(next).forEach(([x, y]) => {
                     const c = gridEl.querySelector(`.grid-cell[data-x="${x}"][data-y="${y}"]`);
                     if (c) c.classList.add('preview');
                 });
+                const badge = wordsEl.querySelector(`.word-badge[data-word-idx="${next}"]`);
+                if (badge) badge.classList.add('preview');
             }
 
             gridEl.addEventListener('click', (event) => {
@@ -202,7 +208,7 @@
                 if (next === undefined) return;
                 pinnedWordIdx = next;
                 showWord(pinnedWordIdx);
-                if (canHover) previewAt(cell);
+                clearPreview();
             });
 
             if (canHover) {

@@ -37,6 +37,11 @@
             --tile-highlight-bg: #fde68a;
             --tile-highlight-border: #d97706;
             --tile-highlight-text: #1e232c;
+            --tile-highlight-shadow: 0 4px 8px rgba(217, 119, 6, 0.25);
+            --tile-preview-bg: #dbeafe;
+            --tile-preview-border: #3b82f6;
+            --tile-preview-text: #1e3a8a;
+            --tile-preview-shadow: 0 4px 8px rgba(37, 99, 235, 0.22);
             --badge-active-bg: #2563eb;
             --badge-active-border: #1d4ed8;
             --badge-active-text: #ffffff;
@@ -74,6 +79,11 @@
             --tile-highlight-bg: #fcd34d;
             --tile-highlight-border: #f59e0b;
             --tile-highlight-text: #11131a;
+            --tile-highlight-shadow: 0 4px 10px rgba(245, 158, 11, 0.35);
+            --tile-preview-bg: #bfdbfe;
+            --tile-preview-border: #60a5fa;
+            --tile-preview-text: #0f172a;
+            --tile-preview-shadow: 0 4px 10px rgba(59, 130, 246, 0.38);
             --badge-active-bg: #3b82f6;
             --badge-active-border: #60a5fa;
             --badge-active-text: #ffffff;
@@ -352,35 +362,34 @@
         }
 
         .grid-cell {
-            transition: background-color 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+            transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
         }
 
         #result-grid .grid-cell:not(.empty) {
             cursor: pointer;
         }
 
-        /* Desktop affordances: lift tiles/badges and preview the word a click selects */
+        /* Desktop affordances: hovering a tile lifts the whole word a click selects */
         @media (hover: hover) {
-            #result-grid .grid-cell:not(.empty):hover {
-                transform: translateY(-2px);
-                border-color: var(--badge-active-border);
-            }
-
             button.word-badge:hover {
                 transform: translateY(-1px);
                 box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
             }
         }
 
-        .grid-cell.preview:not(.highlighted) {
-            border: 1px dashed var(--tile-highlight-border);
-            box-shadow: inset 0 0 0 1px var(--tile-highlight-border);
-        }
-
         .grid-cell.highlighted {
             background-color: var(--tile-highlight-bg);
             border-color: var(--tile-highlight-border);
             color: var(--tile-highlight-text);
+            box-shadow: var(--tile-highlight-shadow);
+            transform: translateY(-2px);
+        }
+
+        .grid-cell.preview {
+            background-color: var(--tile-preview-bg);
+            border-color: var(--tile-preview-border);
+            color: var(--tile-preview-text);
+            box-shadow: var(--tile-preview-shadow);
             transform: translateY(-2px);
         }
 
@@ -425,7 +434,13 @@
 
         button.word-badge {
             cursor: pointer;
-            transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+            transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
+        }
+
+        button.word-badge.preview:not(.active) {
+            border-color: var(--badge-active-border);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16);
         }
 
         button.word-badge:hover,
