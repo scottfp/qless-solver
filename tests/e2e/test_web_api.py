@@ -190,6 +190,7 @@ def test_solve_letters_htmx_live_and_validation(client: TestClient) -> None:
     assert "Found " in live.text
     assert 'id="result-grid"' in live.text
     assert 'class="word-badge"' in live.text
+    assert 'class="word-exclude"' in live.text
     assert 'id="prev-result"' in live.text
     assert 'id="next-result"' in live.text
     assert 'id="result-definition"' in live.text

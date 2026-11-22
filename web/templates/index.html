@@ -379,14 +379,6 @@
             cursor: pointer;
         }
 
-        /* Desktop affordances: hovering a tile lifts the whole word a click selects */
-        @media (hover: hover) {
-            button.word-badge:hover {
-                transform: translateY(-1px);
-                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
-            }
-        }
-
         .grid-cell.highlighted {
             background-color: var(--tile-highlight-bg);
             border-color: var(--tile-highlight-border);
@@ -400,6 +392,14 @@
             border-color: var(--tile-preview-border);
             color: var(--tile-preview-text);
             box-shadow: var(--tile-preview-shadow);
+            transform: translateY(-2px);
+        }
+
+        .grid-cell.exclude-preview {
+            background-color: var(--exclude-bg);
+            border-color: var(--exclude-hover-border);
+            color: var(--exclude-text);
+            box-shadow: 0 4px 10px rgba(239, 68, 68, 0.28);
             transform: translateY(-2px);
         }
 
@@ -425,40 +425,86 @@
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
-            gap: 6px;
+            gap: 8px;
             margin-top: 10px;
         }
 
-        .word-badge,
-        button.word-badge {
+        .word-chip {
+            display: inline-flex;
+            align-items: stretch;
             background-color: var(--badge-bg);
             border: 1px solid var(--badge-border);
-            color: var(--badge-text);
             border-radius: 999px;
-            padding: 3px 10px;
+            overflow: hidden;
+            transition: background-color 0.12s ease, border-color 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
+        }
+
+        @media (hover: hover) {
+            .word-chip:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+            }
+        }
+
+        .word-chip.preview:not(.active) {
+            border-color: var(--badge-active-border);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16);
+        }
+
+        .word-chip.active {
+            background-color: var(--badge-active-bg);
+            border-color: var(--badge-active-border);
+        }
+
+        button.word-badge {
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            color: var(--badge-text);
+            padding: 4px 9px 4px 12px;
             font-size: 0.8rem;
             font-weight: 700;
             letter-spacing: 0.04em;
             font-family: inherit;
-        }
-
-        button.word-badge {
             cursor: pointer;
-            transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
-        }
-
-        button.word-badge.preview:not(.active) {
-            border-color: var(--badge-active-border);
-            transform: translateY(-1px);
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16);
+            transition: background-color 0.12s ease, color 0.12s ease;
         }
 
         button.word-badge:hover,
         button.word-badge:focus-visible,
         button.word-badge.active {
             background-color: var(--badge-active-bg);
-            border-color: var(--badge-active-border);
             color: var(--badge-active-text);
+            outline: none;
+        }
+
+        button.word-exclude {
+            background: transparent;
+            border: none;
+            border-left: 1px solid var(--badge-border);
+            border-radius: 0;
+            color: var(--muted-text);
+            padding: 4px 10px 4px 8px;
+            font-size: 0.85rem;
+            font-weight: 800;
+            line-height: 1;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background-color 0.12s ease, color 0.12s ease;
+        }
+
+        .word-chip.active button.word-exclude {
+            color: rgba(255, 255, 255, 0.85);
+            border-left-color: rgba(255, 255, 255, 0.28);
+        }
+
+        button.word-exclude:hover,
+        button.word-exclude:focus-visible,
+        .word-chip.active button.word-exclude:hover,
+        .word-chip.active button.word-exclude:focus-visible {
+            background-color: var(--exclude-bg);
+            color: var(--exclude-text);
             outline: none;
         }
 
@@ -472,11 +518,6 @@
             line-height: 1.45;
             color: var(--text-color);
             min-height: 1.45em;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-wrap: wrap;
-            gap: 6px 10px;
             text-align: center;
         }
 
@@ -489,26 +530,6 @@
         .definition-hint {
             color: var(--muted-text);
             font-style: italic;
-        }
-
-        button.exclude-btn {
-            background-color: var(--exclude-bg);
-            border: 1px solid var(--exclude-border);
-            color: var(--exclude-text);
-            border-radius: 999px;
-            padding: 2px 10px;
-            font-size: 0.78rem;
-            font-weight: 700;
-            font-family: inherit;
-            cursor: pointer;
-            transition: background-color 0.12s ease, border-color 0.12s ease;
-        }
-
-        button.exclude-btn:hover,
-        button.exclude-btn:focus-visible {
-            background-color: var(--exclude-hover-bg);
-            border-color: var(--exclude-hover-border);
-            outline: none;
         }
 
         .excluded-bar {
