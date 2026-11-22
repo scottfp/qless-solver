@@ -48,7 +48,7 @@
         </div>
 
         <div id="result-definition" class="definition-box" aria-live="polite">
-            <span class="definition-hint">Hover or tap a word to see its definition.</span>
+            <span class="definition-hint">Hover or tap a word or tile to see its definition.</span>
         </div>
     </section>
 
@@ -57,7 +57,7 @@
             const solutions = {{ serialized_solutions|tojson }};
             if (!solutions || solutions.length === 0) return;
 
-            const HINT = 'Hover or tap a word to see its definition.';
+            const HINT = 'Hover or tap a word or tile to see its definition.';
             let idx = 0;
             let pinnedWordIdx = null;
             const gridEl = document.getElementById('result-grid');
@@ -156,6 +156,29 @@
             }
 
             wordsEl.querySelectorAll('.word-badge').forEach(bindBadge);
+
+            // Clicking/tapping a tile pins the word(s) it belongs to. Tiles at an
+            // intersection cycle: first word -> second word -> unpinned.
+            gridEl.addEventListener('click', (event) => {
+                const cell = event.target.closest('.grid-cell');
+                if (!cell || cell.classList.contains('empty')) return;
+                const x = Number(cell.dataset.x);
+                const y = Number(cell.dataset.y);
+                const candidates = [];
+                entriesFor(solutions[idx]).forEach((entry, wordIdx) => {
+                    if ((entry.cells || []).some(([cx, cy]) => cx === x && cy === y)) {
+                        candidates.push(wordIdx);
+                    }
+                });
+                if (candidates.length === 0) return;
+                const pos = candidates.indexOf(pinnedWordIdx);
+                if (pos === -1) {
+                    pinnedWordIdx = candidates[0];
+                } else {
+                    pinnedWordIdx = pos + 1 < candidates.length ? candidates[pos + 1] : null;
+                }
+                showWord(pinnedWordIdx);
+            });
 
             if (prevBtn && nextBtn) {
                 prevBtn.addEventListener('click', () => render(idx - 1));

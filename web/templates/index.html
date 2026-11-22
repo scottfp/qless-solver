@@ -355,6 +355,10 @@
             transition: background-color 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
         }
 
+        #result-grid .grid-cell:not(.empty) {
+            cursor: pointer;
+        }
+
         .grid-cell.highlighted {
             background-color: var(--tile-highlight-bg);
             border-color: var(--tile-highlight-border);
