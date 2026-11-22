@@ -43,12 +43,15 @@
 
         <div id="result-words" class="word-list">
             {% for entry in first_sol.word_entries %}
-                <button type="button" class="word-badge" data-word-idx="{{ loop.index0 }}" title="{{ entry.definition or 'Definition unavailable' }}">{{ entry.word }}</button>
+                <span class="word-chip" data-word-idx="{{ loop.index0 }}">
+                    <button type="button" class="word-badge" data-word-idx="{{ loop.index0 }}" title="{{ entry.definition or 'Definition unavailable' }}">{{ entry.word }}</button>
+                    <button type="button" class="word-exclude" data-word="{{ entry.word }}" data-word-idx="{{ loop.index0 }}" title="Exclude {{ entry.word }} and re-solve" aria-label="Exclude {{ entry.word }}">&times;</button>
+                </span>
             {% endfor %}
         </div>
 
         <div id="result-definition" class="definition-box" aria-live="polite">
-            <span class="definition-hint">Click or tap any word on the board or below to see its definition.</span>
+            <span class="definition-hint">Click or tap any word to see its definition, or &times; to exclude it.</span>
         </div>
     </section>
 
@@ -59,10 +62,12 @@
 
             const canHover = window.matchMedia('(hover: hover)').matches;
             const HINT = canHover
-                ? 'Click any word on the board or below to see its definition.'
-                : 'Tap any word on the board or below to see its definition.';
+                ? 'Click any word on the board or below to see its definition, or × to exclude it.'
+                : 'Tap any word on the board or below to see its definition, or × to exclude it.';
             let idx = 0;
             let pinnedWordIdx = null;
+            let lastShownWordIdx = undefined;
+            let lastShownPinnedIdx = undefined;
             const gridEl = document.getElementById('result-grid');
             const counterEl = document.getElementById('result-counter');
             const metaEl = document.getElementById('result-meta');
@@ -76,12 +81,39 @@
                     || (sol.words || []).map((w) => ({ word: w, definition: null, cells: [] }));
             }
 
+            function cellsOf(wordIdx) {
+                const entry = wordIdx === null ? null : entriesFor(solutions[idx])[wordIdx];
+                return entry ? entry.cells || [] : [];
+            }
+
+            function clearExcludePreview() {
+                gridEl.querySelectorAll('.grid-cell.exclude-preview')
+                    .forEach((c) => c.classList.remove('exclude-preview'));
+            }
+
+            function showExcludePreview(wordIdx) {
+                clearExcludePreview();
+                cellsOf(wordIdx).forEach(([x, y]) => {
+                    const c = gridEl.querySelector(`.grid-cell[data-x="${x}"][data-y="${y}"]`);
+                    if (c) c.classList.add('exclude-preview');
+                });
+            }
+
             function showWord(wordIdx) {
+                if (wordIdx === lastShownWordIdx && pinnedWordIdx === lastShownPinnedIdx) {
+                    return;
+                }
+                lastShownWordIdx = wordIdx;
+                lastShownPinnedIdx = pinnedWordIdx;
+
                 const entries = entriesFor(solutions[idx]);
                 gridEl.querySelectorAll('.grid-cell.highlighted')
                     .forEach((c) => c.classList.remove('highlighted'));
                 wordsEl.querySelectorAll('.word-badge').forEach((b) => {
                     b.classList.toggle('active', Number(b.dataset.wordIdx) === pinnedWordIdx);
+                });
+                wordsEl.querySelectorAll('.word-chip').forEach((chip) => {
+                    chip.classList.toggle('active', Number(chip.dataset.wordIdx) === pinnedWordIdx);
                 });
 
                 defEl.replaceChildren();
@@ -108,22 +140,43 @@
                 defEl.append(wordSpan, textSpan);
             }
 
-            function bindBadge(badge) {
-                const wordIdx = Number(badge.dataset.wordIdx);
-                badge.addEventListener('mouseenter', () => showWord(wordIdx));
-                badge.addEventListener('focus', () => showWord(wordIdx));
-                badge.addEventListener('mouseleave', () => showWord(pinnedWordIdx));
-                badge.addEventListener('blur', () => showWord(pinnedWordIdx));
-                badge.addEventListener('click', () => {
-                    pinnedWordIdx = pinnedWordIdx === wordIdx ? null : wordIdx;
-                    showWord(pinnedWordIdx ?? wordIdx);
-                });
+            function bindWordChip(chip) {
+                const wordIdx = Number(chip.dataset.wordIdx);
+                const badge = chip.querySelector('.word-badge');
+                const excludeBtn = chip.querySelector('.word-exclude');
+                if (badge) {
+                    badge.addEventListener('mouseenter', () => showWord(wordIdx));
+                    badge.addEventListener('focus', () => showWord(wordIdx));
+                    badge.addEventListener('mouseleave', () => showWord(pinnedWordIdx));
+                    badge.addEventListener('blur', () => showWord(pinnedWordIdx));
+                    badge.addEventListener('click', () => {
+                        pinnedWordIdx = pinnedWordIdx === wordIdx ? null : wordIdx;
+                        showWord(pinnedWordIdx);
+                    });
+                }
+                if (excludeBtn) {
+                    const word = excludeBtn.dataset.word || (badge ? badge.textContent : '');
+                    excludeBtn.addEventListener('mouseenter', () => showExcludePreview(wordIdx));
+                    excludeBtn.addEventListener('focus', () => showExcludePreview(wordIdx));
+                    excludeBtn.addEventListener('mouseleave', clearExcludePreview);
+                    excludeBtn.addEventListener('blur', clearExcludePreview);
+                    excludeBtn.addEventListener('click', (event) => {
+                        event.stopPropagation();
+                        clearExcludePreview();
+                        if (typeof window.qlessExcludeWord === 'function') {
+                            window.qlessExcludeWord(word);
+                        }
+                    });
+                }
             }
 
             function render(newIdx) {
                 idx = (newIdx + solutions.length) % solutions.length;
                 pinnedWordIdx = null;
+                lastShownWordIdx = undefined;
+                lastShownPinnedIdx = undefined;
                 clearPreview();
+                clearExcludePreview();
                 const sol = solutions[idx];
 
                 gridEl.replaceChildren();
@@ -146,25 +199,35 @@
 
                 wordsEl.replaceChildren();
                 entriesFor(sol).forEach((entry, wordIdx) => {
+                    const chip = document.createElement('span');
+                    chip.className = 'word-chip';
+                    chip.dataset.wordIdx = String(wordIdx);
+
                     const badge = document.createElement('button');
                     badge.type = 'button';
                     badge.className = 'word-badge';
                     badge.dataset.wordIdx = String(wordIdx);
                     badge.title = entry.definition || 'Definition unavailable';
                     badge.textContent = entry.word;
-                    bindBadge(badge);
-                    wordsEl.appendChild(badge);
+
+                    const excludeBtn = document.createElement('button');
+                    excludeBtn.type = 'button';
+                    excludeBtn.className = 'word-exclude';
+                    excludeBtn.dataset.word = entry.word;
+                    excludeBtn.dataset.wordIdx = String(wordIdx);
+                    excludeBtn.title = `Exclude ${entry.word} and re-solve`;
+                    excludeBtn.setAttribute('aria-label', `Exclude ${entry.word}`);
+                    excludeBtn.textContent = '×';
+
+                    chip.append(badge, excludeBtn);
+                    bindWordChip(chip);
+                    wordsEl.appendChild(chip);
                 });
 
                 showWord(null);
             }
 
-            wordsEl.querySelectorAll('.word-badge').forEach(bindBadge);
-
-            function cellsOf(wordIdx) {
-                const entry = wordIdx === null ? null : entriesFor(solutions[idx])[wordIdx];
-                return entry ? entry.cells || [] : [];
-            }
+            wordsEl.querySelectorAll('.word-chip').forEach(bindWordChip);
 
             // Word a click on (x, y) would pin next. Tiles at an intersection
             // cycle: first word -> second word -> unpinned (null).
@@ -184,8 +247,8 @@
             function clearPreview() {
                 gridEl.querySelectorAll('.grid-cell.preview')
                     .forEach((c) => c.classList.remove('preview'));
-                wordsEl.querySelectorAll('.word-badge.preview')
-                    .forEach((b) => b.classList.remove('preview'));
+                wordsEl.querySelectorAll('.word-chip.preview')
+                    .forEach((c) => c.classList.remove('preview'));
             }
 
             function previewAt(cell) {
@@ -197,8 +260,8 @@
                     const c = gridEl.querySelector(`.grid-cell[data-x="${x}"][data-y="${y}"]`);
                     if (c) c.classList.add('preview');
                 });
-                const badge = wordsEl.querySelector(`.word-badge[data-word-idx="${next}"]`);
-                if (badge) badge.classList.add('preview');
+                const chip = wordsEl.querySelector(`.word-chip[data-word-idx="${next}"]`);
+                if (chip) chip.classList.add('preview');
             }
 
             gridEl.addEventListener('click', (event) => {
@@ -228,6 +291,9 @@
     </script>
 {% else %}
     <div class="info">
-        <p>No solutions found for letters: <strong>{{ letters_submitted }}</strong> (min length: {{ min_word_length_submitted }}).</p>
+        <p>
+            No solutions found for letters: <strong>{{ letters_submitted }}</strong>
+            (min length: {{ min_word_length_submitted }}{% if excluded_words_submitted %}, excluding: <strong>{{ excluded_words_submitted|join(', ') }}</strong>{% endif %}).
+        </p>
     </div>
 {% endif %}

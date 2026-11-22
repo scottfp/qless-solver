@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from typing import Optional
 
@@ -60,8 +61,27 @@ def parse_args(args: Optional[list[str]] = None) -> argparse.Namespace:
         action="store_true",
         help="Show all valid dictionary words formable from the letters",
     )
+    parser.add_argument(
+        "--exclude",
+        "-x",
+        action="append",
+        default=[],
+        help="Exclude word(s) from solutions (repeatable or comma-separated)",
+    )
 
     return parser.parse_args(args)
+
+
+def _parse_excluded_words(raw_values: list[str]) -> list[str]:
+    """Normalize repeatable or comma/whitespace-separated excluded words."""
+    excluded: list[str] = []
+    seen: set[str] = set()
+    for raw in raw_values:
+        for token in re.split(r"[,\s]+", raw.strip().lower()):
+            if token and token.isascii() and token.isalpha() and token not in seen:
+                seen.add(token)
+                excluded.append(token)
+    return excluded
 
 
 def main() -> int:
@@ -96,9 +116,12 @@ def main() -> int:
         print("Error: Maximum solutions must be at least 1", file=sys.stderr)
         return 1
 
+    excluded = _parse_excluded_words(args.exclude)
+
     if args.all_words:
         words = sorted(
-            Dictionary().get_valid_words(letters, min_length=args.min_word_length),
+            Dictionary().get_valid_words(letters, min_length=args.min_word_length)
+            - set(excluded),
             key=lambda w: (-len(w), w),
         )
         if not words:
@@ -113,6 +136,7 @@ def main() -> int:
         letters=letters,
         min_word_length=args.min_word_length,
         max_solutions=args.max_solutions,
+        excluded_words=excluded or None,
     )
 
     if not boards:

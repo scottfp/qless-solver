@@ -47,6 +47,12 @@
             --badge-active-text: #ffffff;
             --def-bg: #f8f9fb;
             --def-border: #d8dde6;
+            --exclude-bg: #fef2f2;
+            --exclude-border: #fca5a5;
+            --exclude-text: #b91c1c;
+            --exclude-hover-bg: #fee2e2;
+            --exclude-hover-border: #ef4444;
+            --loading-backdrop: rgba(244, 245, 247, 0.55);
         }
 
         .dark-mode {
@@ -89,6 +95,12 @@
             --badge-active-text: #ffffff;
             --def-bg: #1b2030;
             --def-border: #343c50;
+            --exclude-bg: #351c22;
+            --exclude-border: #8b3a46;
+            --exclude-text: #fca5a5;
+            --exclude-hover-bg: #4c232c;
+            --exclude-hover-border: #f87171;
+            --loading-backdrop: rgba(22, 25, 32, 0.55);
         }
 
         * {
@@ -278,9 +290,32 @@
             background-color: var(--secondary-hover);
         }
 
+        @keyframes qless-spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2.5px solid var(--border-color);
+            border-top-color: var(--button-bg);
+            border-radius: 50%;
+            animation: qless-spin 0.7s linear infinite;
+            flex-shrink: 0;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .spinner {
+                animation-duration: 2.5s;
+            }
+        }
+
         .htmx-indicator {
             display: none;
             align-items: center;
+            gap: 8px;
             font-size: 0.9rem;
             color: var(--muted-text);
             font-weight: 600;
@@ -291,8 +326,49 @@
             display: inline-flex;
         }
 
-        #results-container {
+        .results-region {
+            position: relative;
+            min-height: 56px;
             margin-bottom: 18px;
+        }
+
+        #results-container {
+            transition: opacity 0.12s ease;
+        }
+
+        .results-region.is-loading #results-container {
+            opacity: 0.35;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        .results-loading {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--loading-backdrop);
+            border-radius: 12px;
+            z-index: 10;
+        }
+
+        .results-loading[hidden] {
+            display: none;
+        }
+
+        .loading-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 18px;
+            background-color: var(--container-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 999px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.16);
+            color: var(--text-color);
+            font-size: 0.92rem;
+            font-weight: 700;
         }
 
         .results-placeholder {
@@ -369,14 +445,6 @@
             cursor: pointer;
         }
 
-        /* Desktop affordances: hovering a tile lifts the whole word a click selects */
-        @media (hover: hover) {
-            button.word-badge:hover {
-                transform: translateY(-1px);
-                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
-            }
-        }
-
         .grid-cell.highlighted {
             background-color: var(--tile-highlight-bg);
             border-color: var(--tile-highlight-border);
@@ -390,6 +458,14 @@
             border-color: var(--tile-preview-border);
             color: var(--tile-preview-text);
             box-shadow: var(--tile-preview-shadow);
+            transform: translateY(-2px);
+        }
+
+        .grid-cell.exclude-preview {
+            background-color: var(--exclude-bg);
+            border-color: var(--exclude-hover-border);
+            color: var(--exclude-text);
+            box-shadow: 0 4px 10px rgba(239, 68, 68, 0.28);
             transform: translateY(-2px);
         }
 
@@ -415,40 +491,86 @@
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
-            gap: 6px;
+            gap: 8px;
             margin-top: 10px;
         }
 
-        .word-badge,
-        button.word-badge {
+        .word-chip {
+            display: inline-flex;
+            align-items: stretch;
             background-color: var(--badge-bg);
             border: 1px solid var(--badge-border);
-            color: var(--badge-text);
             border-radius: 999px;
-            padding: 3px 10px;
+            overflow: hidden;
+            transition: background-color 0.12s ease, border-color 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
+        }
+
+        @media (hover: hover) {
+            .word-chip:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+            }
+        }
+
+        .word-chip.preview:not(.active) {
+            border-color: var(--badge-active-border);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16);
+        }
+
+        .word-chip.active {
+            background-color: var(--badge-active-bg);
+            border-color: var(--badge-active-border);
+        }
+
+        button.word-badge {
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            color: var(--badge-text);
+            padding: 4px 9px 4px 12px;
             font-size: 0.8rem;
             font-weight: 700;
             letter-spacing: 0.04em;
             font-family: inherit;
-        }
-
-        button.word-badge {
             cursor: pointer;
-            transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
-        }
-
-        button.word-badge.preview:not(.active) {
-            border-color: var(--badge-active-border);
-            transform: translateY(-1px);
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16);
+            transition: background-color 0.12s ease, color 0.12s ease;
         }
 
         button.word-badge:hover,
         button.word-badge:focus-visible,
         button.word-badge.active {
             background-color: var(--badge-active-bg);
-            border-color: var(--badge-active-border);
             color: var(--badge-active-text);
+            outline: none;
+        }
+
+        button.word-exclude {
+            background: transparent;
+            border: none;
+            border-left: 1px solid var(--badge-border);
+            border-radius: 0;
+            color: var(--muted-text);
+            padding: 4px 10px 4px 8px;
+            font-size: 0.85rem;
+            font-weight: 800;
+            line-height: 1;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background-color 0.12s ease, color 0.12s ease;
+        }
+
+        .word-chip.active button.word-exclude {
+            color: rgba(255, 255, 255, 0.85);
+            border-left-color: rgba(255, 255, 255, 0.28);
+        }
+
+        button.word-exclude:hover,
+        button.word-exclude:focus-visible,
+        .word-chip.active button.word-exclude:hover,
+        .word-chip.active button.word-exclude:focus-visible {
+            background-color: var(--exclude-bg);
+            color: var(--exclude-text);
             outline: none;
         }
 
@@ -474,6 +596,69 @@
         .definition-hint {
             color: var(--muted-text);
             font-style: italic;
+        }
+
+        .excluded-bar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .excluded-bar[hidden] {
+            display: none;
+        }
+
+        .excluded-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--muted-text);
+            margin-right: 2px;
+        }
+
+        button.excluded-chip {
+            background-color: var(--exclude-bg);
+            border: 1px solid var(--exclude-border);
+            color: var(--exclude-text);
+            border-radius: 999px;
+            padding: 2px 9px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            font-family: inherit;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: background-color 0.12s ease, border-color 0.12s ease;
+        }
+
+        button.excluded-chip:hover,
+        button.excluded-chip:focus-visible {
+            background-color: var(--exclude-hover-bg);
+            border-color: var(--exclude-hover-border);
+            outline: none;
+        }
+
+        button.clear-excluded-btn {
+            background: transparent;
+            border: none;
+            color: var(--muted-text);
+            padding: 2px 6px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        button.clear-excluded-btn:hover,
+        button.clear-excluded-btn:focus-visible {
+            color: var(--text-color);
+            outline: none;
         }
 
         .error {
@@ -525,6 +710,7 @@
                   hx-post="/solve-htmx/"
                   hx-target="#results-container"
                   hx-swap="innerHTML"
+                  hx-sync="this:replace"
                   hx-indicator="#loading-indicator">
                 <label for="letters">12 rolled letters (no Q):</label>
                 <div class="input-row">
@@ -547,14 +733,27 @@
                         <label for="max_solutions">Max solutions</label>
                         <input type="number" id="max_solutions" name="max_solutions" value="10" min="1" max="50">
                     </div>
-                    <button type="submit">Solve</button>
-                    <span id="loading-indicator" class="htmx-indicator">Solving...</span>
+                    <button type="submit" id="solve-submit-btn">Solve</button>
+                    <span id="loading-indicator" class="htmx-indicator">
+                        <span class="spinner" aria-hidden="true"></span>
+                        <span>Solving...</span>
+                    </span>
                 </div>
+                <input type="hidden" id="excluded_words" name="excluded_words" value="">
+                <div id="excluded-words-bar" class="excluded-bar" aria-live="polite" hidden></div>
             </form>
         </section>
 
-        <div id="results-container">
-            <p class="results-placeholder">Enter 12 letters or roll the dice, then click <strong>Solve</strong>.</p>
+        <div id="results-region" class="results-region">
+            <div id="results-container" aria-busy="false">
+                <p class="results-placeholder">Enter 12 letters or roll the dice, then click <strong>Solve</strong>.</p>
+            </div>
+            <div id="results-loading" class="results-loading" role="status" aria-live="polite" hidden>
+                <div class="loading-pill">
+                    <span class="spinner" aria-hidden="true"></span>
+                    <span id="results-loading-text">Solving...</span>
+                </div>
+            </div>
         </div>
 
         <section class="card">
@@ -606,18 +805,133 @@
             setMode(enabled);
         });
 
-        // Manual input counter and Roll 12 Dice helper
+        // Manual input counter, excluded word chips, loading state, and Roll 12 Dice helper
+        const solverForm = document.getElementById('solver-form');
+        const imageForm = document.getElementById('image-form');
         const lettersInput = document.getElementById('letters');
         const letterCount = document.getElementById('letter-count');
         const rollButton = document.getElementById('roll-dice-btn');
+        const excludedInput = document.getElementById('excluded_words');
+        const excludedBar = document.getElementById('excluded-words-bar');
+        const resultsRegion = document.getElementById('results-region');
+        const resultsContainer = document.getElementById('results-container');
+        const resultsLoading = document.getElementById('results-loading');
+        const resultsLoadingText = document.getElementById('results-loading-text');
+        const solveSubmitBtn = document.getElementById('solve-submit-btn');
+        const inFlightSolves = new Set();
+        let excludedWords = [];
+        let lastRollLetters = '';
+
+        function setSolvingState(isLoading) {
+            resultsRegion.classList.toggle('is-loading', isLoading);
+            resultsLoading.hidden = !isLoading;
+            resultsContainer.setAttribute('aria-busy', isLoading ? 'true' : 'false');
+            solveSubmitBtn.disabled = isLoading;
+            if (isLoading) {
+                resultsLoadingText.textContent = document.getElementById('live-results-card')
+                    ? 'Finding new solutions...'
+                    : 'Solving...';
+            }
+        }
+
+        [solverForm, imageForm].forEach((form) => {
+            if (!form) return;
+            form.addEventListener('htmx:beforeRequest', (event) => {
+                inFlightSolves.add(event.detail.xhr);
+                setSolvingState(true);
+            });
+            ['htmx:afterRequest', 'htmx:sendError', 'htmx:abort'].forEach((evt) => {
+                form.addEventListener(evt, (event) => {
+                    inFlightSolves.delete(event.detail.xhr);
+                    setSolvingState(inFlightSolves.size > 0);
+                });
+            });
+        });
+
+        function renderExcludedBar() {
+            excludedInput.value = excludedWords.join(',');
+            excludedBar.replaceChildren();
+            if (excludedWords.length === 0) {
+                excludedBar.hidden = true;
+                return;
+            }
+            excludedBar.hidden = false;
+
+            const label = document.createElement('span');
+            label.className = 'excluded-label';
+            label.textContent = 'Excluded:';
+            excludedBar.appendChild(label);
+
+            excludedWords.forEach((word) => {
+                const chip = document.createElement('button');
+                chip.type = 'button';
+                chip.className = 'excluded-chip';
+                chip.title = `Restore ${word}`;
+                chip.setAttribute('aria-label', `Remove ${word} from excluded words`);
+
+                const wordText = document.createElement('span');
+                wordText.textContent = word;
+                const times = document.createElement('span');
+                times.setAttribute('aria-hidden', 'true');
+                times.textContent = '×';
+                chip.append(wordText, times);
+
+                chip.addEventListener('click', () => window.qlessRemoveExcludedWord(word));
+                excludedBar.appendChild(chip);
+            });
+
+            const clearBtn = document.createElement('button');
+            clearBtn.type = 'button';
+            clearBtn.className = 'clear-excluded-btn';
+            clearBtn.textContent = 'Clear all';
+            clearBtn.addEventListener('click', () => {
+                excludedWords = [];
+                renderExcludedBar();
+                resubmitSolver();
+            });
+            excludedBar.appendChild(clearBtn);
+        }
+
+        function resubmitSolver() {
+            if (lettersInput.value.trim().length === 12) {
+                solverForm.requestSubmit();
+            }
+        }
+
+        window.qlessExcludeWord = (word) => {
+            const cleaned = String(word || '').trim().toUpperCase();
+            if (!cleaned || excludedWords.includes(cleaned)) return;
+            excludedWords.push(cleaned);
+            lastRollLetters = lettersInput.value.trim().toLowerCase();
+            renderExcludedBar();
+            resubmitSolver();
+        };
+
+        window.qlessRemoveExcludedWord = (word) => {
+            const cleaned = String(word || '').trim().toUpperCase();
+            excludedWords = excludedWords.filter((w) => w !== cleaned);
+            renderExcludedBar();
+            resubmitSolver();
+        };
 
         function updateLetterCount() {
             const len = lettersInput.value.trim().length;
             letterCount.textContent = `${len} / 12`;
         }
 
-        lettersInput.addEventListener('input', updateLetterCount);
+        lettersInput.addEventListener('input', () => {
+            updateLetterCount();
+            const current = lettersInput.value.trim().toLowerCase();
+            if (current !== lastRollLetters && excludedWords.length > 0) {
+                excludedWords = [];
+                renderExcludedBar();
+            }
+        });
         updateLetterCount();
+
+        solverForm.addEventListener('submit', () => {
+            lastRollLetters = lettersInput.value.trim().toLowerCase();
+        });
 
         rollButton.addEventListener('click', async () => {
             rollButton.disabled = true;
@@ -626,6 +940,11 @@
                 if (resp.ok) {
                     const data = await resp.json();
                     lettersInput.value = data.letters || '';
+                    lastRollLetters = lettersInput.value.trim().toLowerCase();
+                    if (excludedWords.length > 0) {
+                        excludedWords = [];
+                        renderExcludedBar();
+                    }
                     updateLetterCount();
                 }
             } finally {
