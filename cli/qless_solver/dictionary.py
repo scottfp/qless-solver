@@ -5,14 +5,18 @@ Provides functions for validating words and finding valid words.
 
 from collections import Counter
 from pathlib import Path
-from typing import Dict, Iterable, Optional, Set
+from typing import Dict, Iterable, Optional, Set, Tuple
+
+WordIndexEntry = Tuple[int, int, str]
+WordIndex = Tuple[WordIndexEntry, ...]
 
 DEFAULT_DICTIONARY_PATH = (
     Path(__file__).parent.parent.parent / "dictionary.txt"
 ).resolve()
 
-# Global cache for dictionaries keyed by resolved path
+# Global cache for dictionaries and precomputed bitmask indices keyed by resolved path
 _DICTIONARY_CACHE: Dict[Path, Set[str]] = {}
+_DICTIONARY_INDEX_CACHE: Dict[Path, WordIndex] = {}
 
 _FALLBACK_WORDS: Set[str] = {
     "apple",
@@ -42,6 +46,40 @@ _FALLBACK_WORDS: Set[str] = {
 }
 
 
+def _word_mask(word: str) -> int:
+    mask = 0
+    for ch in word:
+        mask |= 1 << (ord(ch) - 97)
+    return mask
+
+
+def _build_word_index(words: Iterable[str]) -> WordIndex:
+    return tuple(
+        (_word_mask(word), len(word), word)
+        for word in words
+        if word and word.isascii() and word.isalpha()
+    )
+
+
+def _filter_index(index: WordIndex, letters: str, min_length: int) -> Set[str]:
+    letters_lower = letters.lower()
+    if not letters_lower or not letters_lower.isascii() or not letters_lower.isalpha():
+        return set()
+
+    available_letters = Counter(letters_lower)
+    available_mask = _word_mask(letters_lower)
+    disallowed_mask = ~available_mask
+    max_length = len(letters_lower)
+
+    valid_words: Set[str] = set()
+    for mask, word_len, word in index:
+        if word_len < min_length or word_len > max_length or (mask & disallowed_mask):
+            continue
+        if all(word.count(ch) <= available_letters[ch] for ch in set(word)):
+            valid_words.add(word)
+    return valid_words
+
+
 def load_dictionary(
     dictionary_path: Optional[Path] = None,
     force_reload: bool = False,
@@ -63,7 +101,9 @@ def load_dictionary(
         else Path(dictionary_path).resolve()
     )
 
-    if not force_reload and resolved_path in _DICTIONARY_CACHE:
+    if force_reload:
+        _DICTIONARY_INDEX_CACHE.pop(resolved_path, None)
+    elif resolved_path in _DICTIONARY_CACHE:
         return _DICTIONARY_CACHE[resolved_path]
 
     words: Set[str] = set()
@@ -89,6 +129,20 @@ def load_dictionary(
 
     _DICTIONARY_CACHE[resolved_path] = words
     return words
+
+
+def _get_cached_index(dictionary_path: Optional[Path] = None) -> WordIndex:
+    resolved_path = (
+        DEFAULT_DICTIONARY_PATH
+        if dictionary_path is None
+        else Path(dictionary_path).resolve()
+    )
+    dictionary = load_dictionary(dictionary_path)
+    index = _DICTIONARY_INDEX_CACHE.get(resolved_path)
+    if index is None or len(index) != len(dictionary):
+        index = _build_word_index(dictionary)
+        _DICTIONARY_INDEX_CACHE[resolved_path] = index
+    return index
 
 
 def is_valid_word(word: str, min_length: int = 3) -> bool:
@@ -145,18 +199,8 @@ def get_valid_words(
     Returns:
         Set of valid words that can be formed.
     """
-    dictionary = load_dictionary(dictionary_path)
-    available_letters = Counter(letters.lower())
-    max_length = len(letters)
-
-    valid_words: Set[str] = set()
-    for word in dictionary:
-        if min_length <= len(word) <= max_length and can_form_word(
-            word, available_letters
-        ):
-            valid_words.add(word)
-
-    return valid_words
+    index = _get_cached_index(dictionary_path)
+    return _filter_index(index, letters, min_length)
 
 
 def add_custom_words(words: Set[str]) -> None:
@@ -169,6 +213,7 @@ def add_custom_words(words: Set[str]) -> None:
     dictionary = load_dictionary()
     for word in words:
         dictionary.add(word.lower())
+    _DICTIONARY_INDEX_CACHE.pop(DEFAULT_DICTIONARY_PATH, None)
 
 
 class Dictionary:
@@ -179,6 +224,10 @@ class Dictionary:
         path: Optional[Path] = None,
         words: Optional[Iterable[str]] = None,
     ) -> None:
+        self._source_path: Optional[Path] = None
+        self._word_index: Optional[WordIndex] = None
+        self._indexed_word_count: int = -1
+
         if words is not None:
             self.words: Set[str] = {
                 stripped.lower()
@@ -187,6 +236,9 @@ class Dictionary:
                 if stripped and stripped.isascii() and stripped.isalpha()
             }
         else:
+            self._source_path = (
+                DEFAULT_DICTIONARY_PATH if path is None else Path(path).resolve()
+            )
             self.words = set(load_dictionary(path))
 
     def is_valid_word(self, word: str, min_length: int = 1) -> bool:
@@ -195,15 +247,21 @@ class Dictionary:
 
     def load_dictionary(self, path: Path, force_reload: bool = False) -> None:
         """Reload the dictionary from ``path``."""
+        self._source_path = Path(path).resolve()
+        self._word_index = None
+        self._indexed_word_count = -1
         self.words = set(load_dictionary(path, force_reload=force_reload))
+
+    def _get_index(self) -> WordIndex:
+        if self._source_path is not None:
+            cached_words = _DICTIONARY_CACHE.get(self._source_path)
+            if cached_words is not None and len(cached_words) == len(self.words):
+                return _get_cached_index(self._source_path)
+        if self._word_index is None or self._indexed_word_count != len(self.words):
+            self._word_index = _build_word_index(self.words)
+            self._indexed_word_count = len(self.words)
+        return self._word_index
 
     def get_valid_words(self, letters: str, min_length: int = 3) -> Set[str]:
         """Return all dictionary words formable from ``letters`` with length >= ``min_length``."""
-        available_letters = Counter(letters.lower())
-        max_length = len(letters)
-        return {
-            word
-            for word in self.words
-            if min_length <= len(word) <= max_length
-            and can_form_word(word, available_letters)
-        }
+        return _filter_index(self._get_index(), letters, min_length)

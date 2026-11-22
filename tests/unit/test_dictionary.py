@@ -138,5 +138,34 @@ def test_dictionary_in_memory_and_valid_words() -> None:
     assert d.get_valid_words("cat", min_length=2) == {"at", "cat"}
 
 
+def test_bitmask_index_invalidated_on_reload_and_custom_words(tmp_path: Path) -> None:
+    """Bitmask-indexed get_valid_words refreshes on force_reload and add_custom_words."""
+    custom_file = tmp_path / "idx_words.txt"
+    custom_file.write_text("ZAP\n", encoding="utf-8")
+
+    # Warm both caches for custom_file
+    assert get_valid_words("zapzip", min_length=3, dictionary_path=custom_file) == {
+        "zap"
+    }
+
+    custom_file.write_text("ZAP\nZIP\n", encoding="utf-8")
+    # Without reload, cached index still has only "zap"
+    assert get_valid_words("zapzip", min_length=3, dictionary_path=custom_file) == {
+        "zap"
+    }
+
+    # Reload via load_dictionary(force_reload=True) invalidates the index cache
+    load_dictionary(custom_file, force_reload=True)
+    assert get_valid_words("zapzip", min_length=3, dictionary_path=custom_file) == {
+        "zap",
+        "zip",
+    }
+
+    # add_custom_words invalidates the default index cache
+    assert "qqqqq" not in get_valid_words("qqqqq", min_length=3)
+    add_custom_words({"qqqqq"})
+    assert "qqqqq" in get_valid_words("qqqqq", min_length=3)
+
+
 if __name__ == "__main__":
     pytest.main()
