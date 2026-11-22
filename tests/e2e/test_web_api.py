@@ -41,6 +41,8 @@ def test_read_root_html(client: TestClient) -> None:
     assert "<title>Q-less Solver</title>" in response.text
     assert 'id="dark-mode-toggle"' in response.text
     assert 'id="roll-dice-btn"' in response.text
+    assert 'id="results-loading"' in response.text
+    assert 'hx-sync="this:replace"' in response.text
     assert 'id="default-grid-wrapper"' not in response.text
 
 
