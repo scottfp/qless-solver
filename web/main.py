@@ -81,8 +81,34 @@ def validate_letter_input(
     return cleaned, None
 
 
-def _serialize_solutions(solutions: list[GridSolution]) -> list[dict[str, object]]:
+def _build_word_entries(
+    sol: GridSolution, board_words: list[str], definitions: dict[str, Optional[str]]
+) -> list[dict[str, object]]:
+    """Pair each solution word with its definition and normalized tile coordinates."""
+    runs: dict[str, list[list[list[int]]]] = {}
+    board = sol.to_board().normalize()
+    for run in sorted(
+        board.extract_runs(min_length=2), key=lambda r: (r.y, r.x, r.direction)
+    ):
+        runs.setdefault(run.word.upper(), []).append([[x, y] for x, y in run.cells()])
+    entries: list[dict[str, object]] = []
+    for word in board_words:
+        matches = runs.get(word)
+        cells = matches.pop(0) if matches else []
+        entries.append(
+            {"word": word, "definition": definitions.get(word), "cells": cells}
+        )
+    return entries
+
+
+def _serialize_solutions(
+    solutions: list[GridSolution], dictionary: Optional[Dictionary] = None
+) -> list[dict[str, object]]:
     """Serialize solved grids into JSON-safe row arrays and metadata for the UI carousel."""
+    all_words = {pw.word.upper() for sol in solutions for pw in sol.grid.words}
+    definitions: dict[str, Optional[str]] = (
+        dictionary.get_definitions(sorted(all_words)) if dictionary else {}
+    )
     serialized: list[dict[str, object]] = []
     for sol in solutions:
         board = sol.to_board()
@@ -92,6 +118,7 @@ def _serialize_solutions(solutions: list[GridSolution]) -> list[dict[str, object
             {
                 "rows": board.to_rows(),
                 "words": words,
+                "word_entries": _build_word_entries(sol, words, definitions),
                 "word_count": len(words),
                 "dimensions": f"{width}x{height}",
             }
@@ -167,7 +194,9 @@ async def solve_letters_htmx(
         "results_snippet.html",
         {
             "solutions": solutions,
-            "serialized_solutions": _serialize_solutions(solutions),
+            "serialized_solutions": await asyncio.to_thread(
+                _serialize_solutions, solutions, get_dictionary()
+            ),
             "error_message": error_message,
             "info_message": None,
             "letters_submitted": cleaned,
@@ -235,7 +264,9 @@ async def solve_letters_image(
         "results_snippet.html",
         {
             "solutions": solutions,
-            "serialized_solutions": _serialize_solutions(solutions),
+            "serialized_solutions": await asyncio.to_thread(
+                _serialize_solutions, solutions, get_dictionary()
+            ),
             "error_message": error_message,
             "info_message": None,
             "letters_submitted": cleaned,
@@ -278,6 +309,25 @@ async def solve_letters_api(request_body: SolveRequestBody) -> list[GridSolution
         raise HTTPException(
             status_code=500, detail=f"An error occurred during solving: {e!s}"
         )
+
+
+@app.get("/api/define/{word}", tags=["API"])
+async def define_word_api(word: str) -> JSONResponse:
+    """Look up the dictionary definition for a single word."""
+    cleaned = word.strip()
+    if not cleaned or not (cleaned.isascii() and cleaned.isalpha()):
+        raise HTTPException(
+            status_code=422, detail="Word must contain only letters (A-Z)."
+        )
+    dictionary = get_dictionary()
+    if dictionary is None:
+        raise HTTPException(status_code=503, detail="Dictionary unavailable")
+    definition = await asyncio.to_thread(dictionary.get_definition, cleaned)
+    if definition is None:
+        raise HTTPException(
+            status_code=404, detail=f"No definition found for '{cleaned.upper()}'."
+        )
+    return JSONResponse({"word": cleaned.upper(), "definition": definition})
 
 
 # To run (from project root):

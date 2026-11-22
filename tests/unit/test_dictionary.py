@@ -10,6 +10,8 @@ from qless_solver.dictionary import (
     Dictionary,
     add_custom_words,
     can_form_word,
+    get_definition,
+    get_definitions,
     get_valid_words,
     is_valid_word,
     load_dictionary,
@@ -185,6 +187,87 @@ def test_qless_dictionary_path_env_override(
     # After monkeypatch cleans up, default dictionary lookup still works
     monkeypatch.delenv("QLESS_DICTIONARY_PATH")
     assert "eat" in load_dictionary()
+
+
+@pytest.mark.parametrize(
+    ("word", "expected"),
+    [
+        ("aa", "volcanic rock [n]"),  # first line of the file
+        ("AA", "volcanic rock [n]"),
+        ("zzz", "informal word for sleep [n]"),
+        ("gorm", "foolish person [n] / understand [v]"),
+        ("context", "circumstances of an event or fact [n]"),
+    ],
+)
+def test_get_definition_direct(word: str, expected: str) -> None:
+    assert get_definition(word) == expected
+
+
+def test_get_definition_resolves_inflections() -> None:
+    assert get_definition("aahed") == "form of AAH [v] — exclaim in pleasure [v]"
+    assert get_definition("zzzs") == "form of ZZZ [n] — informal word for sleep [n]"
+    assert get_definition("cats") == (
+        "form of CAT [n] — small domesticated furry mammal [n]"
+    )
+
+
+def test_get_definition_resolves_variants_with_pos_filter() -> None:
+    assert get_definition("bunn") == (
+        "variant of BUN [n] — small sweet bread roll or cake [n]"
+    )
+    # DWAM has [n] and [v] senses; DWALM references the noun only.
+    assert get_definition("dwalm") == "variant of DWAM [n] — stupor or daydream [n]"
+
+
+def test_get_definition_multi_hop_keeps_notes_once() -> None:
+    assert get_definition("abyed") == (
+        "form of ABYE -> variant of ABY (archaic) [v] — pay the penalty for [v]"
+    )
+
+
+def test_get_definition_strips_internal_annotations() -> None:
+    defn = get_definition("aborticides")
+    assert defn is not None
+    assert "not_family" not in defn
+    assert defn.startswith("form of ABORTICIDE")
+
+
+@pytest.mark.parametrize("word", ["notarealwordxyz", "", "123", "ca t", "café"])
+def test_get_definition_missing_or_invalid(word: str) -> None:
+    assert get_definition(word) is None
+
+
+def test_get_definitions_batch_dedupes_and_uppercases() -> None:
+    result = get_definitions(["gorm", "GORM", "notarealwordxyz"])
+    assert result == {
+        "GORM": "foolish person [n] / understand [v]",
+        "NOTAREALWORDXYZ": None,
+    }
+
+
+def test_dictionary_definitions_from_small_custom_file(tmp_path: Path) -> None:
+    custom = tmp_path / "custom.txt"
+    # Deliberately unsorted: small files are scanned linearly.
+    custom.write_text("DOG loyal pet [n]\nCAT furry pet [n]\nCATS <cat=n> [n]\n")
+    wrapper = Dictionary(path=custom)
+    assert wrapper.get_definition("cat") == "furry pet [n]"
+    assert wrapper.get_definition("cats") == "form of CAT [n] — furry pet [n]"
+    assert wrapper.get_definitions(["cat", "dog", "missing"]) == {
+        "CAT": "furry pet [n]",
+        "DOG": "loyal pet [n]",
+        "MISSING": None,
+    }
+
+
+def test_in_memory_dictionary_has_no_definitions() -> None:
+    wrapper = Dictionary(words={"cat", "dog"})
+    assert wrapper.get_definition("cat") is None
+
+
+def test_dictionary_definition_requires_word_in_dictionary() -> None:
+    wrapper = Dictionary()
+    assert wrapper.get_definition("gorm") == "foolish person [n] / understand [v]"
+    assert wrapper.get_definition("notarealwordxyz") is None
 
 
 if __name__ == "__main__":
