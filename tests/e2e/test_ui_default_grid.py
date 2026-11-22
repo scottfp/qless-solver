@@ -121,3 +121,5 @@ def test_index_has_navigation_arrows(client: TestClient):
     html = response.text
     assert 'id="prev-solution"' in html
     assert 'id="next-solution"' in html
+    assert 'id="dark-mode-toggle"' in html
+    assert 'id="roll-dice-btn"' in html

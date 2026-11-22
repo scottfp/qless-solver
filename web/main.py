@@ -1,11 +1,14 @@
+from __future__ import annotations
+
 import os
 import sys
-from typing import List
+from contextlib import asynccontextmanager
+from typing import AsyncIterator, Optional
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 DEFAULT_GRIDS = [
     [
@@ -48,18 +51,42 @@ if cli_path not in sys.path:
     sys.path.insert(0, cli_path)
 
 try:
+    from qless_solver.dictionary import Dictionary
+    from qless_solver.generator import generate_random_roll
     from qless_solver.grid_solver import Grid, GridSolution, solve_qless_grid
     from qless_solver.image_detection import detect_letters
 except ImportError as e:
     print(f"Error importing solver modules: {e}")
-    # Handle as appropriate, e.g. by disabling features or raising an error at startup
-    solve_qless_grid = None
-    GridSolution = None
-    Grid = None
-    detect_letters = None
+    Dictionary = None  # type: ignore[assignment,misc]
+    generate_random_roll = None  # type: ignore[assignment]
+    solve_qless_grid = None  # type: ignore[assignment]
+    GridSolution = None  # type: ignore[assignment,misc]
+    Grid = None  # type: ignore[assignment,misc]
+    detect_letters = None  # type: ignore[assignment]
+
+_DICTIONARY_INSTANCE: Optional[Dictionary] = None
 
 
-app = FastAPI(title="Q-less Solver UI & API")
+def get_dictionary() -> Optional[Dictionary]:
+    """Return a shared cached Dictionary instance for web requests."""
+    global _DICTIONARY_INSTANCE
+    if Dictionary is None:
+        return None
+    if _DICTIONARY_INSTANCE is None:
+        _DICTIONARY_INSTANCE = Dictionary()
+        # Warm the bitmask index once so subsequent solves stay fast
+        _DICTIONARY_INSTANCE.get_valid_words("rmtoepngtnxc")
+    return _DICTIONARY_INSTANCE
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    """Warm the shared dictionary and bitmask index on startup."""
+    get_dictionary()
+    yield
+
+
+app = FastAPI(title="Q-less Solver UI & API", lifespan=lifespan)
 
 # Setup Jinja2 templates
 templates = Jinja2Templates(
@@ -67,55 +94,106 @@ templates = Jinja2Templates(
 )
 
 
-# This model is for the JSON API, which we might keep for programmatic access
 class SolveRequestBody(BaseModel):
     letters: str
     min_word_length: int = 3
+    max_solutions: int = Field(default=10, ge=1, le=50)
+
+
+def validate_letter_input(
+    letters: str, min_word_length: int = 3
+) -> tuple[str, Optional[str]]:
+    """Validate and normalize rolled dice letters and minimum word length."""
+    cleaned = letters.strip().lower()
+    if not cleaned or not (cleaned.isascii() and cleaned.isalpha()):
+        return cleaned, "Please enter letters only (A-Z)."
+    if len(cleaned) != 12:
+        return cleaned, f"Expected exactly 12 letters, got {len(cleaned)}."
+    if min_word_length < 2 or min_word_length > 12:
+        return cleaned, "Minimum word length must be between 2 and 12."
+    return cleaned, None
+
+
+def _serialize_solutions(solutions: list[GridSolution]) -> list[dict[str, object]]:
+    """Serialize solved grids into JSON-safe row arrays and metadata for the UI carousel."""
+    serialized: list[dict[str, object]] = []
+    for sol in solutions:
+        board = sol.to_board()
+        width, height = board.dimensions()
+        words = [pw.word.upper() for pw in sol.grid.words]
+        serialized.append(
+            {
+                "rows": board.to_rows(),
+                "words": words,
+                "word_count": len(words),
+                "dimensions": f"{width}x{height}",
+            }
+        )
+    return serialized
 
 
 @app.get("/", response_class=HTMLResponse)
-async def read_index(request: Request):
+async def read_index(request: Request) -> HTMLResponse:
     """Serves the main HTML page."""
     return templates.TemplateResponse(
         request, "index.html", {"default_grids": DEFAULT_GRIDS}
     )
 
 
-# This is the endpoint HTMX will call. It needs to return an HTML snippet.
+@app.get("/roll/", tags=["API"])
+async def roll_dice_endpoint() -> JSONResponse:
+    """Generate a random 12-letter roll using the authentic Q-Less dice distribution."""
+    if generate_random_roll is None:
+        raise HTTPException(
+            status_code=500, detail="Dice generator not available due to import error."
+        )
+    return JSONResponse({"letters": generate_random_roll().lower()})
+
+
 @app.post("/solve-htmx/", response_class=HTMLResponse)
 async def solve_letters_htmx(
-    request: Request, letters: str = Form(...), min_word_length: int = Form(3)
-):
-    """
-    Endpoint for HTMX form submission.
-    Accepts letters and min_word_length from form data.
-    Returns an HTML snippet with the solutions.
-    """
+    request: Request,
+    letters: str = Form(...),
+    min_word_length: int = Form(3),
+    max_solutions: int = Form(10),
+) -> HTMLResponse:
+    """Endpoint for HTMX form submission returning an interactive HTML results snippet."""
     if solve_qless_grid is None:
         return HTMLResponse(
             "<div class='error'>Solver is not available due to an import error.</div>",
             status_code=500,
         )
 
-    solutions: List[GridSolution] = []
-    error_message = None
-    try:
-        solutions = solve_qless_grid(letters=letters, min_word_length=min_word_length)
-    except FileNotFoundError as e:
-        error_message = f"Dictionary file not found: {e}"
-        print(error_message)  # Log it
-    except Exception as e:
-        error_message = f"An error occurred during solving: {str(e)}"
-        print(error_message)  # Log it
+    cleaned, validation_error = validate_letter_input(letters, min_word_length)
+    clamped_max = max(1, min(max_solutions, 50))
+    solutions: list[GridSolution] = []
+    error_message = validation_error
 
-    # Render an HTML snippet template with the solutions or error
+    if error_message is None:
+        try:
+            solutions = solve_qless_grid(
+                letters=cleaned,
+                min_word_length=min_word_length,
+                dictionary=get_dictionary(),
+                max_solutions=clamped_max,
+                timeout_seconds=3.0,
+            )
+        except FileNotFoundError as e:
+            error_message = f"Dictionary file not found: {e}"
+            print(error_message)
+        except Exception as e:
+            error_message = f"An error occurred during solving: {e!s}"
+            print(error_message)
+
     return templates.TemplateResponse(
         request,
         "results_snippet.html",
         {
             "solutions": solutions,
+            "serialized_solutions": _serialize_solutions(solutions),
             "error_message": error_message,
-            "letters_submitted": letters,
+            "info_message": None,
+            "letters_submitted": cleaned,
             "min_word_length_submitted": min_word_length,
         },
     )
@@ -126,7 +204,7 @@ async def solve_letters_image(
     request: Request,
     image: UploadFile = File(...),
     min_word_length: int = Form(3),
-):
+) -> HTMLResponse:
     """Handle image upload, detect letters, and return solutions."""
     if solve_qless_grid is None or detect_letters is None:
         return HTMLResponse(
@@ -137,55 +215,89 @@ async def solve_letters_image(
     content = await image.read()
     detected = detect_letters(content)
 
-    solutions: List[GridSolution] = []
-    error_message = None
-    try:
-        solutions = solve_qless_grid(
-            letters=detected,
-            min_word_length=min_word_length,
+    if not detected:
+        return templates.TemplateResponse(
+            request,
+            "results_snippet.html",
+            {
+                "solutions": [],
+                "serialized_solutions": [],
+                "error_message": None,
+                "info_message": (
+                    "Automatic photo letter detection is not implemented yet. "
+                    "Please enter your 12 rolled letters manually above."
+                ),
+                "letters_submitted": "",
+                "min_word_length_submitted": min_word_length,
+            },
         )
-    except FileNotFoundError as e:
-        error_message = f"Dictionary file not found: {e}"
-        print(error_message)
-    except Exception as e:
-        error_message = f"An error occurred during solving: {str(e)}"
-        print(error_message)
-    # Render an HTML snippet template with the solutions or error
+
+    cleaned, validation_error = validate_letter_input(detected, min_word_length)
+    solutions: list[GridSolution] = []
+    error_message = validation_error
+
+    if error_message is None:
+        try:
+            solutions = solve_qless_grid(
+                letters=cleaned,
+                min_word_length=min_word_length,
+                dictionary=get_dictionary(),
+                max_solutions=10,
+                timeout_seconds=3.0,
+            )
+        except FileNotFoundError as e:
+            error_message = f"Dictionary file not found: {e}"
+            print(error_message)
+        except Exception as e:
+            error_message = f"An error occurred during solving: {e!s}"
+            print(error_message)
+
     return templates.TemplateResponse(
         request,
         "results_snippet.html",
         {
             "solutions": solutions,
+            "serialized_solutions": _serialize_solutions(solutions),
             "error_message": error_message,
-            "letters_submitted": detected,
+            "info_message": None,
+            "letters_submitted": cleaned,
             "min_word_length_submitted": min_word_length,
         },
     )
 
 
-# Optional: Keep the JSON API endpoint if direct API access is also desired
-@app.post("/api/solve/", response_model=List[GridSolution], tags=["API"])
-async def solve_letters_api(request_body: SolveRequestBody) -> List[GridSolution]:
+@app.post("/api/solve/", response_model=list[GridSolution], tags=["API"])
+async def solve_letters_api(request_body: SolveRequestBody) -> list[GridSolution]:
     """
-    JSON API endpoint. Accepts a string of letters and an optional minimum word length.
-    Returns a list of possible grid solutions.
+    JSON API endpoint. Accepts 12 rolled letters and optional constraints.
+    Returns a list of valid grid solutions.
     """
     if solve_qless_grid is None:
         raise HTTPException(
             status_code=500,
             detail="Solver function not available due to an import error.",
         )
+
+    cleaned, validation_error = validate_letter_input(
+        request_body.letters, request_body.min_word_length
+    )
+    if validation_error is not None:
+        raise HTTPException(status_code=422, detail=validation_error)
+
     try:
-        solutions = solve_qless_grid(
-            letters=request_body.letters, min_word_length=request_body.min_word_length
+        return solve_qless_grid(
+            letters=cleaned,
+            min_word_length=request_body.min_word_length,
+            dictionary=get_dictionary(),
+            max_solutions=request_body.max_solutions,
+            timeout_seconds=3.0,
         )
-        return solutions
     except FileNotFoundError as e:
         raise HTTPException(status_code=500, detail=f"Dictionary file not found: {e}")
     except Exception as e:
         print(f"Error during API solving: {e}")
         raise HTTPException(
-            status_code=500, detail=f"An error occurred during solving: {str(e)}"
+            status_code=500, detail=f"An error occurred during solving: {e!s}"
         )
 
 

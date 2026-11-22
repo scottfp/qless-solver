@@ -55,14 +55,17 @@ uv pip install -e ".[dev,ocr]"
 ## Usage
 
 ```bash
-# Basic usage
-qless-solver --letters "abcdefghijkl"
+# Solve a 12-letter roll and print up to 5 ranked crossword grids
+qless-solver --letters "rmtoepngtnxc"
+
+# Show up to 10 solutions with a minimum word length of 4
+qless-solver --letters "rmtoepngtnxc" --max-solutions 10 --min-word-length 4
 
 # Generate a random roll
 qless-solver --generate
 
-# Show all possible words
-qless-solver --letters "abcdefghijkl" --all-words
+# Show all valid dictionary words formable from the letters
+qless-solver --letters "rmtoepngtnxc" --all-words
 
 # For help
 qless-solver --help
@@ -171,20 +174,24 @@ qless-solver/
 ├── cli/
 │   └── qless_solver/
 │       ├── __init__.py
-│       ├── cli.py          # Command-line interface
-│       ├── solver.py       # Core solving logic
-│       ├── dictionary.py   # Dictionary lookup functionality
-│       └── generator.py    # Input string generation utility
+│       ├── board.py            # 2D Board model, canonicalization, and strict validator
+│       ├── cli.py              # Command-line interface
+│       ├── dice.py             # Authentic 12-die Q-Less distribution and DiceSet model
+│       ├── dictionary.py       # Cached dictionary lookup and bitmask word filtering
+│       ├── generator.py        # Random roll generation utility
+│       ├── grid_solver.py      # Intersection-aware 2D crossword grid solver
+│       ├── image_detection.py  # OCR letter detection stub (Phase 4)
+│       └── preprocess.py       # Image adaptive thresholding helper
 │
-├── tests/                  # Test suite
-│   ├── unit/               # Unit tests
-│   └── e2e/                # End-to-end tests
+├── tests/                      # Test suite
+│   ├── unit/                   # Unit tests
+│   └── e2e/                    # End-to-end tests
 │
-├── web/                    # Future web interface (Phase 2)
+├── web/                        # FastAPI + HTMX web interface
 │
-├── .github/                # GitHub Actions configuration
-├── .devcontainer/          # Dev container configuration
-├── .pre-commit-config.yaml # Pre-commit hooks configuration
+├── .github/                    # GitHub Actions configuration
+├── .devcontainer/              # Dev container configuration
+├── .pre-commit-config.yaml     # Pre-commit hooks configuration
 ├── README.md
 ├── LICENSE
 ├── pyproject.toml

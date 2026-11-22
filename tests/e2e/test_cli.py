@@ -1,6 +1,6 @@
-"""
-End-to-end tests for the CLI interface.
-"""
+"""End-to-end tests for the CLI interface."""
+
+from __future__ import annotations
 
 import subprocess
 import sys
@@ -10,102 +10,147 @@ import pytest
 
 def test_cli_version() -> None:
     """Test that the CLI returns a version number."""
-    # Skip this test if we're not running in development mode
     pytest.importorskip("qless_solver")
 
-    # Run the CLI with --version
     result = subprocess.run(
         [sys.executable, "-m", "qless_solver.cli", "--version"],
         capture_output=True,
         text=True,
     )
 
-    # Check that it returned successfully
     assert result.returncode == 0
-    # Check that it printed something that looks like a version
     assert "qless-solver" in result.stdout
 
 
 def test_cli_help() -> None:
-    """Test that the CLI help works."""
-    # Skip this test if we're not running in development mode
+    """Test that the CLI help works and documents --max-solutions."""
     pytest.importorskip("qless_solver")
 
-    # Run the CLI with --help
     result = subprocess.run(
         [sys.executable, "-m", "qless_solver.cli", "--help"],
         capture_output=True,
         text=True,
     )
 
-    # Check that it returned successfully
     assert result.returncode == 0
-    # Check that it printed help information
     assert "usage:" in result.stdout.lower()
     assert "--letters" in result.stdout
+    assert "--max-solutions" in result.stdout
 
 
-def test_cli_with_letters() -> None:
-    """Test the CLI with a simple letter input."""
-    # Skip this test if we're not running in development mode
+def test_cli_generate_roll() -> None:
+    """Test generating a random 12-letter roll via --generate."""
     pytest.importorskip("qless_solver")
 
-    # First, add some test words to the dictionary
-    # This is a bit of a hack, but it works for testing
-    from qless_solver.dictionary import add_custom_words
+    result = subprocess.run(
+        [sys.executable, "-m", "qless_solver.cli", "--generate"],
+        capture_output=True,
+        text=True,
+    )
 
-    add_custom_words({"eat", "tea", "ate"})
+    assert result.returncode == 0
+    assert "Generated random roll:" in result.stdout
+    assert "qless-solver --letters " in result.stdout
 
-    # Run the CLI with a simple input that should match our test words
-    # Make sure we have exactly 12 letters
+
+def test_cli_solve_grid_with_letters() -> None:
+    """Test solving a real 12-letter roll and rendering ASCII grids."""
+    pytest.importorskip("qless_solver")
+
     result = subprocess.run(
         [
             sys.executable,
             "-m",
             "qless_solver.cli",
             "--letters",
-            "eatbcdfghijk",
+            "rmtoepngtnxc",
+            "--max-solutions",
+            "2",
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert "Found 2 solution(s):" in result.stdout
+    assert "Solution 1 (" in result.stdout
+    assert "Solution 2 (" in result.stdout
+    assert "words:" in result.stdout
+
+
+def test_cli_all_words() -> None:
+    """Test listing all valid words with --all-words."""
+    pytest.importorskip("qless_solver")
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "qless_solver.cli",
+            "--letters",
+            "rmtoepngtnxc",
             "--all-words",
         ],
         capture_output=True,
         text=True,
     )
 
-    # Check that it returned successfully
     assert result.returncode == 0
+    assert "valid word(s):" in result.stdout
+    assert "- comet" in result.stdout
+    assert "- prong" in result.stdout
+    assert "- next" in result.stdout
 
-    # Check that it found the expected words
-    assert "eat" in result.stdout
-    assert "tea" in result.stdout
-    assert "ate" in result.stdout
+
+def test_cli_unsolvable_roll() -> None:
+    """Test that an unsolvable 12-letter roll exits cleanly with no solutions."""
+    pytest.importorskip("qless_solver")
+
+    result = subprocess.run(
+        [sys.executable, "-m", "qless_solver.cli", "--letters", "bcdfghjklmnp"],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert "No solutions found." in result.stdout
 
 
 def test_cli_invalid_input() -> None:
-    """Test the CLI with invalid input."""
-    # Skip this test if we're not running in development mode
+    """Test CLI validation error messages and non-zero exit codes."""
     pytest.importorskip("qless_solver")
 
-    # Run the CLI with too few letters
-    result = subprocess.run(
+    short = subprocess.run(
         [sys.executable, "-m", "qless_solver.cli", "--letters", "abc"],
         capture_output=True,
         text=True,
     )
+    assert short.returncode != 0
+    assert "Expected exactly 12 letters" in short.stderr
 
-    # Check that it returned an error
-    assert result.returncode != 0
-    assert "Expected exactly 12 letters" in result.stderr
-
-    # Run the CLI with non-letter characters
-    result = subprocess.run(
+    non_alpha = subprocess.run(
         [sys.executable, "-m", "qless_solver.cli", "--letters", "abc123defghi"],
         capture_output=True,
         text=True,
     )
+    assert non_alpha.returncode != 0
+    assert "Input must contain only letters" in non_alpha.stderr
 
-    # Check that it returned an error
-    assert result.returncode != 0
-    assert "Input must contain only letters" in result.stderr
+    bad_min_len = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "qless_solver.cli",
+            "--letters",
+            "rmtoepngtnxc",
+            "--min-word-length",
+            "1",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert bad_min_len.returncode != 0
+    assert "Minimum word length must be at least 2" in bad_min_len.stderr
 
 
 if __name__ == "__main__":
